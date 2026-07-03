@@ -1,0 +1,10 @@
+[package]
+name = "flowoss-vad"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+sherpa-rs.workspace = true
+flowoss-core.workspace = true

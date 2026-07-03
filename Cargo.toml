@@ -1,0 +1,33 @@
+[workspace]
+resolver = "2"
+members = [
+    "apps/cli",
+    "crates/core",
+    "crates/audio",
+    "crates/stt",
+    "crates/vad",
+    "crates/text_cleanup",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/flowoss/flowoss"
+
+[workspace.dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+cpal = "0.18"
+dirs = "6"
+hound = "3.5"
+sherpa-rs = { version = "0.6.8", default-features = false, features = ["download-binaries"] }
+
+flowoss-core = { path = "crates/core" }
+flowoss-audio = { path = "crates/audio" }
+flowoss-stt = { path = "crates/stt" }
+flowoss-vad = { path = "crates/vad" }
+flowoss-text-cleanup = { path = "crates/text_cleanup" }
+
+[profile.release]
+lto = "thin"

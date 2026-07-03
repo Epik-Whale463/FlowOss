@@ -1,0 +1,18 @@
+[package]
+name = "flowoss-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "flowoss"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+flowoss-core.workspace = true
+flowoss-audio.workspace = true
+flowoss-stt.workspace = true
+flowoss-vad.workspace = true
+flowoss-text-cleanup.workspace = true
