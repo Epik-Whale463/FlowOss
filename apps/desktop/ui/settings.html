@@ -5,15 +5,18 @@
 <title>FlowOSS Settings</title>
 <style>
   :root {
-    --bg: #fafafa; --card: #ffffff; --text: #1a1a1e; --muted: #6b6b74;
-    --line: #e6e6ea; --accent: #4f6ef7; --accent-text: #ffffff;
-    --ok: #1e9e5a; --err: #d5453c; --seg-bg: #eeeef1;
+    --bg: #f4f4f6; --card: #ffffff; --text: #17171c; --muted: #6d6d78;
+    --line: #e4e4ea; --accent: #5b6cf5; --accent-soft: rgba(91,108,245,.12);
+    --accent-text: #ffffff;
+    --ok: #4a7dde; --err: #e05348; --seg-bg: #ebebef; --seg-thumb: #ffffff;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", monospace;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #141417; --card: #1d1d22; --text: #f0f0f3; --muted: #9a9aa2;
-      --line: #2c2c33; --accent: #6d86ff; --accent-text: #ffffff;
-      --ok: #46c47f; --err: #ff7a70; --seg-bg: #29292f;
+      --bg: #101014; --card: #18181e; --text: #eeeef3; --muted: #94949f;
+      --line: #26262e; --accent: #8a97ff; --accent-soft: rgba(138,151,255,.14);
+      --accent-text: #10101a;
+      --ok: #8fb2ff; --err: #ff8177; --seg-bg: #22222a; --seg-thumb: #33333e;
     }
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -25,56 +28,85 @@
   }
   main { max-width: 620px; margin: 0 auto; padding: 28px 24px 48px; }
 
-  header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 20px; }
-  header h1 { font-size: 20px; font-weight: 650; }
+  header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 18px; }
+  header h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
   header .sub { color: var(--muted); font-size: 13px; }
 
+  /* hero mirrors the overlay: a shard of dark glass, whatever the theme */
   .hero {
+    position: relative; overflow: hidden;
     display: flex; align-items: center; gap: 16px;
-    background: var(--card); border: 1px solid var(--line);
-    border-radius: 14px; padding: 18px 20px; margin-bottom: 16px;
+    background:
+      radial-gradient(120% 180% at 8% -30%, rgba(138,151,255,.22), transparent 55%),
+      linear-gradient(160deg, #23242f, #0c0c13);
+    color: #f2f3fa;
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 16px; padding: 18px 20px; margin-bottom: 18px;
+    box-shadow: 0 12px 32px rgba(8,8,16,.28), inset 0 1px 0 rgba(255,255,255,.12);
   }
   .hero button {
-    background: var(--accent); color: var(--accent-text);
+    background: rgba(255,255,255,.94); color: #14141c;
     border: none; border-radius: 999px; padding: 10px 22px;
-    font-size: 14px; font-weight: 600; cursor: pointer;
+    font-size: 14px; font-weight: 650; cursor: pointer;
+    transition: transform 120ms ease, box-shadow 120ms ease;
+    box-shadow: 0 2px 10px rgba(0,0,0,.3);
   }
-  .hero button:active { transform: scale(0.98); }
-  #status { color: var(--muted); }
-  #status .ok { color: var(--ok); font-weight: 600; }
-  #status .rec { color: var(--err); font-weight: 600; }
+  .hero button:hover { box-shadow: 0 4px 16px rgba(0,0,0,.4); }
+  .hero button:active { transform: scale(0.97); }
+  #status { color: #b9bcce; }
+  #status .ok { color: #dfe5ff; font-weight: 600; text-shadow: 0 0 12px rgba(180,195,255,.5); }
+  #status .rec { color: #ff8d81; font-weight: 600; }
+
+  .caption {
+    font-size: 11px; font-weight: 650; letter-spacing: 0.09em;
+    text-transform: uppercase; color: var(--muted);
+    margin: 20px 4px 8px;
+  }
+  .caption:first-of-type { margin-top: 4px; }
 
   section {
     background: var(--card); border: 1px solid var(--line);
     border-radius: 14px; padding: 16px 20px; margin-bottom: 12px;
   }
-  .row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 8px 0; }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 9px 0; }
   .row + .row { border-top: 1px solid var(--line); }
   .row .info { flex: 1; min-width: 0; }
-  .row .label { font-weight: 550; }
+  .row .label { font-weight: 570; letter-spacing: -0.005em; }
   .row .desc { color: var(--muted); font-size: 12.5px; margin-top: 1px; }
 
-  select, input[type=text] {
+  select, input[type=text], input[type=password] {
     background: var(--seg-bg); color: var(--text);
-    border: 1px solid var(--line); border-radius: 8px;
-    padding: 7px 10px; font-size: 13.5px; max-width: 260px;
+    border: 1px solid transparent; border-radius: 9px;
+    padding: 7px 11px; font-size: 13.5px; max-width: 260px;
+    transition: border-color 120ms ease, box-shadow 120ms ease;
   }
-  select:focus, input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  select:hover, input:hover { border-color: var(--line); }
+  select:focus, input:focus {
+    outline: none; border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+  input.key { font-family: var(--mono); font-size: 12.5px; letter-spacing: 0.01em; }
 
-  .seg { display: inline-flex; background: var(--seg-bg); border-radius: 9px; padding: 3px; }
+  .seg { display: inline-flex; background: var(--seg-bg); border-radius: 10px; padding: 3px; }
   .seg label {
-    padding: 5px 14px; border-radius: 7px; cursor: pointer;
-    color: var(--muted); font-weight: 550; font-size: 13px;
+    padding: 5px 14px; border-radius: 8px; cursor: pointer;
+    color: var(--muted); font-weight: 570; font-size: 13px;
+    transition: color 140ms ease, background 140ms ease, box-shadow 140ms ease;
   }
+  .seg label:hover { color: var(--text); }
   .seg input { display: none; }
-  .seg input:checked + span { }
-  .seg label:has(input:checked) { background: var(--card); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.14); }
+  .seg label:has(input:checked) {
+    background: var(--seg-thumb); color: var(--text);
+    box-shadow: 0 1px 4px rgba(0,0,0,.16), inset 0 0 0 1px var(--line);
+  }
 
   .ghost {
     background: none; border: 1px solid var(--line); color: var(--text);
-    border-radius: 8px; padding: 6px 14px; font-size: 13px; cursor: pointer;
+    border-radius: 9px; padding: 6px 14px; font-size: 13px; cursor: pointer;
+    transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
   }
-  .ghost:hover { border-color: var(--accent); color: var(--accent); }
+  .ghost:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+  .ghost:active { transform: scale(0.98); }
 
   #transcript {
     background: var(--seg-bg); border-radius: 10px; padding: 12px 14px;
@@ -87,7 +119,7 @@
   .pillinfo { font-size: 12.5px; color: var(--muted); }
   .pillinfo code {
     background: var(--seg-bg); border-radius: 5px; padding: 2px 7px;
-    font-size: 12px; font-family: ui-monospace, monospace;
+    font-size: 12px; font-family: var(--mono);
   }
 
   footer { color: var(--muted); font-size: 12px; margin-top: 24px; text-align: center; }
@@ -95,7 +127,8 @@
   #toast {
     position: fixed; bottom: 20px; left: 50%; transform: translate(-50%, 8px);
     background: var(--text); color: var(--bg);
-    border-radius: 999px; padding: 8px 18px; font-size: 13px; font-weight: 550;
+    border-radius: 999px; padding: 8px 18px; font-size: 13px; font-weight: 570;
+    box-shadow: 0 8px 24px rgba(0,0,0,.24);
     opacity: 0; pointer-events: none; transition: all 180ms ease;
   }
   #toast.show { opacity: 1; transform: translate(-50%, 0); }
@@ -113,6 +146,7 @@
     <div id="status">Ready</div>
   </div>
 
+  <div class="caption">Dictation</div>
   <section>
     <div class="row">
       <div class="info">
@@ -120,8 +154,18 @@
         <div class="desc">Press once to record, again to transcribe &amp; insert</div>
       </div>
       <div style="display:flex;gap:8px;align-items:center">
-        <input type="text" id="hotkey" placeholder="<Super>z" style="width:130px">
+        <input type="text" class="key" id="hotkey" placeholder="<Super>z" style="width:130px">
         <button class="ghost" id="applyHotkey">Apply</button>
+      </div>
+    </div>
+    <div class="row">
+      <div class="info">
+        <div class="label">Assist shortcut</div>
+        <div class="desc">Highlight text, press once to ask about it, press again to stop</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="text" class="key" id="assistHotkey" placeholder="<Super>x" style="width:130px">
+        <button class="ghost" id="applyAssistHotkey">Apply</button>
       </div>
     </div>
     <div class="row">
@@ -163,6 +207,53 @@
     </div>
   </section>
 
+  <div class="caption">Assistant</div>
+  <section>
+    <div class="row">
+      <div class="info">
+        <div class="label">Assistant</div>
+        <div class="desc">Answers questions about highlighted text using your configured model</div>
+      </div>
+      <select id="assistProvider" style="width:180px">
+        <option value="ollama">Ollama</option>
+        <option value="anthropic">Anthropic</option>
+        <option value="openai">OpenAI-compatible</option>
+      </select>
+    </div>
+    <div class="row">
+      <div class="info">
+        <div class="label">Assistant model</div>
+        <div class="desc">Leave blank to use the provider default where supported</div>
+      </div>
+      <input type="text" id="assistModel" placeholder="gemma3:4b">
+    </div>
+    <div class="row">
+      <div class="info">
+        <div class="label">Endpoint URL</div>
+        <div class="desc">Ollama or OpenAI-compatible base URL</div>
+      </div>
+      <input type="text" id="assistBaseUrl" placeholder="http://localhost:11434">
+    </div>
+    <div class="row">
+      <div class="info">
+        <div class="label">API key</div>
+        <div class="desc">Required for Anthropic and some OpenAI-compatible endpoints</div>
+      </div>
+      <input type="password" id="assistApiKey" placeholder="Optional">
+    </div>
+    <div class="row">
+      <div class="info">
+        <div class="label">Web search</div>
+        <div class="desc">Lets the assistant search the web via DuckDuckGo — free, no API key</div>
+      </div>
+      <div class="seg" id="webSearch">
+        <label><input type="radio" name="websearch" value="on"><span>On</span></label>
+        <label><input type="radio" name="websearch" value="off"><span>Off</span></label>
+      </div>
+    </div>
+  </section>
+
+  <div class="caption">Speech model</div>
   <section>
     <div class="row">
       <div class="info">
@@ -173,6 +264,7 @@
     </div>
   </section>
 
+  <div class="caption">History</div>
   <section>
     <div class="row" style="border:none">
       <div class="info"><div class="label">Last transcript</div></div>
@@ -253,7 +345,15 @@
     const lp = document.querySelector(
       `#livePreview input[value="${settings.live_preview ? "on" : "off"}"]`);
     if (lp) lp.checked = true;
+    const ws = document.querySelector(
+      `#webSearch input[value="${settings.assist_web_search === false ? "off" : "on"}"]`);
+    if (ws) ws.checked = true;
+    $("assistProvider").value = settings.assist_provider ?? "ollama";
+    $("assistModel").value = settings.assist_model ?? "";
+    $("assistBaseUrl").value = settings.assist_base_url ?? "";
+    $("assistApiKey").value = settings.assist_api_key ?? "";
     $("hotkey").value = (await invoke("hotkey_binding")) ?? "";
+    $("assistHotkey").value = (await invoke("assist_hotkey_binding")) ?? "";
     await Promise.all([loadDevices(), loadModel(), loadTranscript()]);
   }
 
@@ -281,6 +381,34 @@
       toast("Error: " + e);
     }
   });
+  $("applyAssistHotkey").addEventListener("click", async () => {
+    try {
+      await invoke("set_assist_hotkey_binding", { binding: $("assistHotkey").value.trim() });
+      toast("Assist shortcut updated");
+    } catch (e) {
+      toast("Error: " + e);
+    }
+  });
+  $("webSearch").addEventListener("change", (e) => {
+    settings.assist_web_search = e.target.value === "on";
+    save();
+  });
+  $("assistProvider").addEventListener("change", () => {
+    settings.assist_provider = $("assistProvider").value;
+    save();
+  });
+  $("assistModel").addEventListener("change", () => {
+    settings.assist_model = $("assistModel").value.trim();
+    save();
+  });
+  $("assistBaseUrl").addEventListener("change", () => {
+    settings.assist_base_url = $("assistBaseUrl").value.trim();
+    save();
+  });
+  $("assistApiKey").addEventListener("change", () => {
+    settings.assist_api_key = $("assistApiKey").value.trim();
+    save();
+  });
   $("test").addEventListener("click", () => invoke("toggle_dictation").catch(() => {}));
   $("copyLast").addEventListener("click", async () => {
     await invoke("copy_last");
@@ -293,9 +421,17 @@
     if (s.state === "recording") {
       el.innerHTML = '<span class="rec">● Recording…</span> ' + Math.floor(s.secs) + "s";
       $("test").textContent = "Stop";
+    } else if (s.state === "assist-recording") {
+      el.innerHTML = '<span class="rec">● Assist recording…</span> ' + Math.floor(s.secs) + "s";
+      $("test").textContent = "Test dictation";
     } else if (s.state === "processing") {
       el.textContent = "Transcribing…";
       $("test").textContent = "Test dictation";
+    } else if (s.state === "assist-processing") {
+      el.textContent = "Assistant thinking…";
+      $("test").textContent = "Test dictation";
+    } else if (s.state === "assist-answer") {
+      el.innerHTML = '<span class="ok">✓ Assistant answered</span>';
     } else if (s.state === "success") {
       el.innerHTML = '<span class="ok">✓ ' + (s.pasted ? "Pasted" : "Copied") + "</span>";
       loadTranscript();

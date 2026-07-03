@@ -1108,6 +1108,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "flowoss-assist"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "serde",
+ "serde_json",
+ "ureq",
+]
+
+[[package]]
 name = "flowoss-audio"
 version = "0.1.0"
 dependencies = [
@@ -1144,6 +1154,7 @@ name = "flowoss-desktop"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "flowoss-assist",
  "flowoss-audio",
  "flowoss-core",
  "flowoss-insertion",
@@ -4482,10 +4493,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "02d1a66277ed75f640d608235660df48c8e3c19f3b4edb6a263315626cc3c01d"
 dependencies = [
  "base64 0.22.1",
+ "flate2",
  "log",
  "once_cell",
  "rustls",
  "rustls-pki-types",
+ "serde",
+ "serde_json",
  "socks",
  "url",
  "webpki-roots 0.26.11",

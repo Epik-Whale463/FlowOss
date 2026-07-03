@@ -22,6 +22,13 @@ pub struct Settings {
     /// preview model).
     pub live_preview: bool,
     pub streaming_model_dir: PathBuf,
+    /// AI backend for highlighted-text assist mode: ollama | anthropic | openai.
+    pub assist_provider: String,
+    pub assist_model: String,
+    pub assist_base_url: String,
+    pub assist_api_key: String,
+    /// Let the assistant call the free DuckDuckGo web_search tool.
+    pub assist_web_search: bool,
 }
 
 impl Default for Settings {
@@ -36,6 +43,11 @@ impl Default for Settings {
             live_preview: true,
             streaming_model_dir: flowoss_core::models_dir()
                 .join("sherpa-onnx-streaming-zipformer-en-20M-2023-02-17"),
+            assist_provider: "ollama".into(),
+            assist_model: "gemma3:4b".into(),
+            assist_base_url: "http://localhost:11434".into(),
+            assist_api_key: String::new(),
+            assist_web_search: true,
         }
     }
 }
@@ -65,5 +77,15 @@ impl Settings {
 
     pub fn cleanup_mode(&self) -> flowoss_text_cleanup::CleanupMode {
         self.cleanup.parse().unwrap_or_default()
+    }
+
+    pub fn assist_config(&self) -> flowoss_assist::AssistConfig {
+        flowoss_assist::AssistConfig {
+            provider: flowoss_assist::Provider::from_str_lossy(&self.assist_provider),
+            model: self.assist_model.trim().to_string(),
+            base_url: self.assist_base_url.trim().to_string(),
+            api_key: self.assist_api_key.trim().to_string(),
+            web_search: self.assist_web_search,
+        }
     }
 }

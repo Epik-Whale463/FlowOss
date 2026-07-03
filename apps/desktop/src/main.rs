@@ -33,7 +33,7 @@ impl EngineHandle {
     fn ask(&self, make: impl FnOnce(Sender<String>) -> Command) -> Result<String, String> {
         let (tx, rx) = channel();
         self.send(make(tx))?;
-        rx.recv_timeout(Duration::from_secs(60))
+        rx.recv_timeout(Duration::from_secs(180))
             .map_err(|_| "engine timeout".into())
     }
 }
@@ -65,6 +65,11 @@ fn toggle_dictation(engine: tauri::State<EngineHandle>) -> Result<String, String
 }
 
 #[tauri::command]
+fn toggle_assist(engine: tauri::State<EngineHandle>) -> Result<String, String> {
+    engine.ask(|tx| Command::AssistToggle(Some(tx)))
+}
+
+#[tauri::command]
 fn last_transcript(engine: tauri::State<EngineHandle>) -> Result<String, String> {
     engine.ask(Command::Last)
 }
@@ -72,6 +77,33 @@ fn last_transcript(engine: tauri::State<EngineHandle>) -> Result<String, String>
 #[tauri::command]
 fn copy_last(engine: tauri::State<EngineHandle>) -> Result<String, String> {
     engine.ask(|tx| Command::CopyLast(Some(tx)))
+}
+
+#[tauri::command]
+fn copy_text(engine: tauri::State<EngineHandle>, text: String) -> Result<String, String> {
+    engine.ask(|tx| Command::CopyText(text, Some(tx)))
+}
+
+#[tauri::command]
+fn dismiss_overlay(engine: tauri::State<EngineHandle>) -> Result<(), String> {
+    engine.send(Command::DismissOverlay)
+}
+
+#[tauri::command]
+fn assist_hover(engine: tauri::State<EngineHandle>, hovering: bool) -> Result<(), String> {
+    engine.send(Command::AssistHover(hovering))
+}
+
+#[tauri::command]
+fn open_url(url: String) -> Result<(), String> {
+    if !url.starts_with("https://") && !url.starts_with("http://") {
+        return Err("only http(s) links can be opened".into());
+    }
+    std::process::Command::new("xdg-open")
+        .arg(&url)
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| e.to_string())
 }
 
 #[derive(Serialize)]
@@ -108,9 +140,20 @@ fn hotkey_binding() -> Option<String> {
 }
 
 #[tauri::command]
+fn assist_hotkey_binding() -> Option<String> {
+    hotkey::current_assist_binding()
+}
+
+#[tauri::command]
 fn set_hotkey_binding(binding: String) -> Result<(), String> {
     let trigger = format!("{} trigger", cli_binary_path());
     hotkey::set_binding(&binding, &trigger)
+}
+
+#[tauri::command]
+fn set_assist_hotkey_binding(binding: String) -> Result<(), String> {
+    let trigger = format!("{} assist", cli_binary_path());
+    hotkey::set_assist_binding(&binding, &trigger)
 }
 
 /// Path of the `flowoss` CLI used by the desktop hotkey. Prefer the
@@ -223,11 +266,18 @@ fn main() {
             set_settings,
             list_microphones,
             toggle_dictation,
+            toggle_assist,
             last_transcript,
             copy_last,
+            copy_text,
+            dismiss_overlay,
+            assist_hover,
+            open_url,
             model_status,
             hotkey_binding,
+            assist_hotkey_binding,
             set_hotkey_binding,
+            set_assist_hotkey_binding,
         ])
         .run(tauri::generate_context!())
         .expect("failed to run FlowOSS");

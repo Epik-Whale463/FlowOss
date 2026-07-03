@@ -50,6 +50,7 @@ fn listen(listener: UnixListener, engine: Sender<Command>) {
         let (reply_tx, reply_rx) = channel();
         let command = match line.trim() {
             "toggle" => Command::Toggle(Some(reply_tx)),
+            "assist" => Command::AssistToggle(Some(reply_tx)),
             "cancel" => Command::Cancel(Some(reply_tx)),
             "last" => Command::Last(reply_tx),
             "copy-last" | "paste-last" => Command::CopyLast(Some(reply_tx)),
@@ -69,7 +70,7 @@ fn listen(listener: UnixListener, engine: Sender<Command>) {
             continue;
         }
         let reply = reply_rx
-            .recv_timeout(Duration::from_secs(60))
+            .recv_timeout(Duration::from_secs(180))
             .unwrap_or_else(|_| "error: engine timeout".into());
         let _ = writeln!(stream, "{reply}");
     }

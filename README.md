@@ -1,52 +1,142 @@
 # FlowOSS
 
-Local-first, open-source voice dictation for Linux and Windows. Hold a key, speak naturally, release, text appears — with all speech-to-text running on your machine via [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) and NVIDIA Parakeet models. No cloud, no telemetry.
+FlowOSS is a local-first, open-source voice dictation app for Linux and Windows.
+Press a shortcut, speak naturally, release, and your text is transcribed on-device and inserted into the active app. No cloud transcription, no telemetry, no always-online dependency.
 
-See [docs/flowoss-prd.md](docs/flowoss-prd.md) for the full product spec.
+It is built in Rust around `sherpa-onnx`, NVIDIA Parakeet speech models, Silero VAD, and a small desktop shell for tray, overlay, and settings UX.
 
-## Status
+## MVP Status
 
-Early development. Milestones M0–M2 working on Ubuntu GNOME Wayland:
-hotkey toggle → record → VAD → local transcription → clipboard (+ optional
-simulated paste via `ydotool` if installed).
+The current MVP is Linux-first and working on Ubuntu GNOME Wayland.
 
-## Prerequisites (Linux)
+Available today:
 
-- Rust toolchain (`rustup`)
-- ALSA headers: `sudo apt install libasound2-dev`
+- Local microphone capture
+- Voice activity detection
+- On-device speech-to-text with Parakeet models
+- Global shortcut driven dictation flow
+- Clipboard-based insertion with auto-paste support
+- Tray app, overlay, and settings window
+- Last transcript recovery
+- Experimental assist mode for highlighted-text Q&A
 
-## Quick start
+Current focus areas after MVP:
+
+- Windows polish
+- Packaging and installer flow
+- More robust insertion across desktop environments
+- Better setup UX for first-time users
+
+## Why FlowOSS
+
+- Private: transcription runs locally
+- Open: Rust workspace with modular crates
+- Practical: works across apps instead of inside a single editor
+- Hackable: settings, models, insertion behavior, and future assist workflows are all extensible
+
+## Workspace Layout
+
+```text
+apps/cli/              CLI binary (`flowoss`)
+apps/desktop/          Desktop shell (tray, overlay, settings)
+crates/core/           shared constants, paths, app state helpers
+crates/audio/          microphone capture and WAV loading
+crates/vad/            Silero VAD integration
+crates/stt/            Parakeet transcription via sherpa-onnx
+crates/text_cleanup/   transcript cleanup modes
+crates/insertion/      clipboard, paste simulation, notifications
+crates/assist/         provider-backed highlighted-text assist mode
+scripts/               setup helpers such as model download
+docs/                  product spec and supporting notes
+packaging/             service and packaging assets
+```
+
+## Quick Start
+
+### 1. Install prerequisites
+
+Linux prerequisites:
+
+- Rust toolchain via `rustup`
+- ALSA development headers: `sudo apt install libasound2-dev`
+
+Depending on desktop integration choices, you may also want tools such as `wl-clipboard`, `xdotool`, or equivalent platform packages already available on your system.
+
+### 2. Download speech models
 
 ```bash
-# Download models (~700MB Parakeet TDT 0.6b v2 int8 + Silero VAD)
 ./scripts/download-models.sh
+```
 
+This downloads the default Parakeet and VAD assets into `models/`.
+
+### 3. Build
+
+```bash
 cargo build --release
+```
 
+### 4. Try the CLI
+
+```bash
 # List microphones
 ./target/release/flowoss devices
 
-# Transcribe a WAV file (M0 proof)
+# Transcribe a WAV file
 ./target/release/flowoss transcribe recording.wav
 
-# Live dictation to stdout: speak, press Enter to stop (M1)
+# Live dictation to stdout
 ./target/release/flowoss listen
 ```
 
-## Dictation daemon (M2)
+## Dictation Daemon Flow
 
-The daemon keeps the model warm and waits for hotkey triggers:
+The daemon keeps the speech stack warm and handles shortcut-triggered dictation:
 
 ```bash
-./target/release/flowoss daemon &        # start once per session
-./target/release/flowoss trigger         # 1st press: start recording
-./target/release/flowoss trigger         # 2nd press: transcribe + copy/paste
-./target/release/flowoss cancel          # abort a recording
-./target/release/flowoss last [--copy]   # recover last transcript
-./target/release/flowoss quit            # stop the daemon
+./target/release/flowoss daemon &
+./target/release/flowoss trigger
+./target/release/flowoss trigger
+./target/release/flowoss cancel
+./target/release/flowoss last --copy
+./target/release/flowoss quit
 ```
 
-Bind `flowoss trigger` to a keyboard shortcut. On GNOME:
+Typical flow:
+
+1. Focus any text field.
+2. Trigger dictation.
+3. Speak naturally.
+4. Trigger again to stop.
+5. FlowOSS transcribes locally and inserts or copies the result.
+
+## Desktop App
+
+The desktop shell adds:
+
+- tray icon controls
+- non-focus-stealing overlay status UI
+- settings window for microphone, model path, paste mode, cleanup, and shortcuts
+- assist shortcut support
+
+Build artifacts for the desktop target come from the same Rust workspace.
+
+## Assist Mode
+
+Assist mode is an experimental MVP-adjacent feature.
+Highlight text in any app, trigger the assist shortcut, ask a spoken question, and FlowOSS sends the selected text plus your transcribed question to the configured provider, then shows the answer in the overlay.
+
+Supported provider styles:
+
+- Ollama
+- Anthropic-compatible APIs
+- OpenAI-compatible APIs
+
+Speech-to-text remains local. Provider calls only happen if you explicitly configure and use assist mode.
+
+## Linux Shortcut Example
+
+On GNOME, you can bind the CLI trigger to a custom shortcut:
 
 ```bash
 KB=/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/flowoss/
@@ -56,28 +146,30 @@ gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:$KB
 gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:$KB binding '<Super>z'
 ```
 
-Flow: focus any text field → Super+Z → speak → Super+Z → the transcript is
-in your clipboard (a notification confirms) → Ctrl+V. If `ydotool` is set
-up, the paste happens automatically (`--paste-mode auto`, the default).
+## Product Spec
 
-## Workspace layout
+The original MVP definition and roadmap live in [`docs/flowoss-prd.md`](docs/flowoss-prd.md).
 
-```
-apps/cli/              CLI prototype (binary: flowoss)
-crates/core/           shared constants and paths
-crates/audio/          mic capture (cpal), resampling, WAV loading
-crates/vad/            Silero voice activity detection
-crates/stt/            Parakeet transcription via sherpa-onnx
-crates/text_cleanup/   raw/basic transcript cleanup
-crates/insertion/      clipboard + paste simulation, notifications
-scripts/               model download helper
-docs/                  PRD
-```
+## Model And Dependency Licensing
 
-## Model licenses
+- FlowOSS source code: `MIT OR Apache-2.0`
+- NVIDIA Parakeet models: CC-BY-4.0
+- `sherpa-onnx`: Apache-2.0
+- Silero VAD: see upstream project licensing
 
-- NVIDIA Parakeet models: CC-BY-4.0 — attribution to NVIDIA required.
-- sherpa-onnx: Apache-2.0.
-- Silero VAD: see [upstream license](https://github.com/snakers4/silero-vad).
+Models are not bundled into the repository and are only downloaded on explicit user action.
 
-Models are downloaded on explicit user action only; nothing is bundled.
+## Repository Notes
+
+- `models/` is intentionally ignored except for a placeholder file
+- `target/` build artifacts are ignored
+- GitHub remote is configured as the main project origin
+
+## License
+
+Licensed under either of:
+
+- Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE))
+- MIT license ([LICENSE-MIT](LICENSE-MIT))
+
+at your option.

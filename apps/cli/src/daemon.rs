@@ -73,6 +73,7 @@ pub fn run(
         let command = line.trim();
         let reply = match command {
             "toggle" => daemon.toggle(),
+            "assist" => Ok("error: assist mode requires flowoss-desktop".into()),
             "cancel" => daemon.cancel(),
             "last" => Ok(daemon.last_transcript.clone()),
             // The daemon must own the clipboard: on Wayland the contents die

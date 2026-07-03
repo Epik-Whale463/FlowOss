@@ -67,6 +67,9 @@ enum Command {
     /// Toggle recording on the running daemon (bind this to a hotkey)
     #[cfg(unix)]
     Trigger,
+    /// Toggle assist mode on the desktop app: selected text + spoken question
+    #[cfg(unix)]
+    Assist,
     /// Cancel an in-progress recording
     #[cfg(unix)]
     Cancel,
@@ -189,6 +192,8 @@ fn main() -> Result<()> {
         }
         #[cfg(unix)]
         Command::Trigger => println!("{}", daemon::send_command("toggle")?),
+        #[cfg(unix)]
+        Command::Assist => println!("{}", daemon::send_command("assist")?),
         #[cfg(unix)]
         Command::Cancel => println!("{}", daemon::send_command("cancel")?),
         #[cfg(unix)]
