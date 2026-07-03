@@ -11,6 +11,9 @@ use anyhow::{bail, Result};
 use clap::{Parser, Subcommand};
 use flowoss_text_cleanup::CleanupMode;
 
+#[cfg(unix)]
+mod daemon;
+
 #[derive(Parser)]
 #[command(name = "flowoss", version, about = "Local-first voice dictation")]
 struct Cli {
@@ -46,6 +49,37 @@ enum Command {
         #[command(flatten)]
         model: ModelArgs,
     },
+    /// Run the dictation daemon: keeps the model warm and waits for triggers
+    #[cfg(unix)]
+    Daemon {
+        /// Input device name; default device if omitted
+        #[arg(short, long)]
+        device: Option<String>,
+        /// Insertion mode: auto (clipboard + simulated paste) | copy
+        #[arg(long, default_value = "auto")]
+        paste_mode: flowoss_insertion::PasteMode,
+        /// Cleanup mode: raw | basic
+        #[arg(long, default_value = "basic")]
+        cleanup: CleanupMode,
+        #[command(flatten)]
+        model: ModelArgs,
+    },
+    /// Toggle recording on the running daemon (bind this to a hotkey)
+    #[cfg(unix)]
+    Trigger,
+    /// Cancel an in-progress recording
+    #[cfg(unix)]
+    Cancel,
+    /// Print the last transcript
+    #[cfg(unix)]
+    Last {
+        /// Also copy it to the clipboard
+        #[arg(long)]
+        copy: bool,
+    },
+    /// Stop the running daemon
+    #[cfg(unix)]
+    Quit,
 }
 
 #[derive(clap::Args)]
@@ -134,6 +168,36 @@ fn main() -> Result<()> {
             }
             println!("{}", flowoss_text_cleanup::clean(&text, cleanup));
         }
+        #[cfg(unix)]
+        Command::Daemon {
+            device,
+            paste_mode,
+            cleanup,
+            model,
+        } => {
+            let stt = load_stt(&model)?;
+            let vad = flowoss_vad::SpeechDetector::new(&model.vad_model)?;
+            daemon::run(
+                stt,
+                vad,
+                daemon::DaemonOptions {
+                    device,
+                    paste_mode,
+                    cleanup,
+                },
+            )?;
+        }
+        #[cfg(unix)]
+        Command::Trigger => println!("{}", daemon::send_command("toggle")?),
+        #[cfg(unix)]
+        Command::Cancel => println!("{}", daemon::send_command("cancel")?),
+        #[cfg(unix)]
+        Command::Last { copy } => {
+            let command = if copy { "copy-last" } else { "last" };
+            println!("{}", daemon::send_command(command)?);
+        }
+        #[cfg(unix)]
+        Command::Quit => println!("{}", daemon::send_command("quit")?),
     }
     Ok(())
 }

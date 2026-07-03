@@ -7,6 +7,7 @@ members = [
     "crates/stt",
     "crates/vad",
     "crates/text_cleanup",
+    "crates/insertion",
 ]
 
 [workspace.package]
@@ -28,6 +29,7 @@ flowoss-audio = { path = "crates/audio" }
 flowoss-stt = { path = "crates/stt" }
 flowoss-vad = { path = "crates/vad" }
 flowoss-text-cleanup = { path = "crates/text_cleanup" }
+flowoss-insertion = { path = "crates/insertion" }
 
 [profile.release]
 lto = "thin"

@@ -16,3 +16,4 @@ flowoss-audio.workspace = true
 flowoss-stt.workspace = true
 flowoss-vad.workspace = true
 flowoss-text-cleanup.workspace = true
+flowoss-insertion.workspace = true

@@ -6,7 +6,9 @@ See [docs/flowoss-prd.md](docs/flowoss-prd.md) for the full product spec.
 
 ## Status
 
-Early development. Current milestone: **M1 — CLI prototype** (record mic → VAD → local transcription → print text).
+Early development. Milestones M0–M2 working on Ubuntu GNOME Wayland:
+hotkey toggle → record → VAD → local transcription → clipboard (+ optional
+simulated paste via `ydotool` if installed).
 
 ## Prerequisites (Linux)
 
@@ -31,6 +33,33 @@ cargo build --release
 ./target/release/flowoss listen
 ```
 
+## Dictation daemon (M2)
+
+The daemon keeps the model warm and waits for hotkey triggers:
+
+```bash
+./target/release/flowoss daemon &        # start once per session
+./target/release/flowoss trigger         # 1st press: start recording
+./target/release/flowoss trigger         # 2nd press: transcribe + copy/paste
+./target/release/flowoss cancel          # abort a recording
+./target/release/flowoss last [--copy]   # recover last transcript
+./target/release/flowoss quit            # stop the daemon
+```
+
+Bind `flowoss trigger` to a keyboard shortcut. On GNOME:
+
+```bash
+KB=/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/flowoss/
+gsettings set org.gnome.settings-daemon.plugins.media-keys custom-keybindings "['$KB']"
+gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:$KB name 'FlowOSS dictation toggle'
+gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:$KB command "$PWD/target/release/flowoss trigger"
+gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:$KB binding '<Super>z'
+```
+
+Flow: focus any text field → Super+Z → speak → Super+Z → the transcript is
+in your clipboard (a notification confirms) → Ctrl+V. If `ydotool` is set
+up, the paste happens automatically (`--paste-mode auto`, the default).
+
 ## Workspace layout
 
 ```
@@ -40,6 +69,7 @@ crates/audio/          mic capture (cpal), resampling, WAV loading
 crates/vad/            Silero voice activity detection
 crates/stt/            Parakeet transcription via sherpa-onnx
 crates/text_cleanup/   raw/basic transcript cleanup
+crates/insertion/      clipboard + paste simulation, notifications
 scripts/               model download helper
 docs/                  PRD
 ```
