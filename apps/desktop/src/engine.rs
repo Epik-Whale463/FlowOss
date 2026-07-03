@@ -40,6 +40,23 @@ const STATE_EVENT: &str = "flowoss://state";
 /// How long success/error stays on screen before the overlay hides.
 const LINGER: Duration = Duration::from_millis(1600);
 
+/// Place the overlay just above the bottom edge, horizontally centered on
+/// the monitor the cursor's window is on (or the primary one).
+fn position_bottom_center(window: &tauri::WebviewWindow) {
+    let monitor = window
+        .current_monitor()
+        .ok()
+        .flatten()
+        .or_else(|| window.primary_monitor().ok().flatten());
+    let (Some(monitor), Ok(size)) = (monitor, window.outer_size()) else {
+        return;
+    };
+    let margin = (56.0 * monitor.scale_factor()) as i32;
+    let x = monitor.position().x + (monitor.size().width as i32 - size.width as i32) / 2;
+    let y = monitor.position().y + monitor.size().height as i32 - size.height as i32 - margin;
+    let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
+}
+
 pub fn spawn(app: AppHandle, settings: Settings) -> Sender<Command> {
     let (tx, rx) = channel();
     std::thread::Builder::new()
@@ -58,6 +75,7 @@ struct Engine {
     recording: Option<flowoss_audio::Recording>,
     last_transcript: String,
     hide_at: Option<Instant>,
+    click_through_set: bool,
 }
 
 fn run(app: AppHandle, settings: Settings, rx: Receiver<Command>) {
@@ -71,6 +89,7 @@ fn run(app: AppHandle, settings: Settings, rx: Receiver<Command>) {
         last_transcript: std::fs::read_to_string(flowoss_core::last_transcript_path())
             .unwrap_or_default(),
         hide_at: None,
+        click_through_set: false,
     };
     engine.emit(StateEvent::Loading);
     engine.load_models();
@@ -90,12 +109,19 @@ impl Engine {
         let _ = self.app.emit(STATE_EVENT, &event);
     }
 
-    fn overlay_visible(&self, visible: bool) {
+    fn overlay_visible(&mut self, visible: bool) {
         match self.app.get_webview_window("overlay") {
             Some(window) => {
+                if visible {
+                    position_bottom_center(&window);
+                }
                 let result = if visible { window.show() } else { window.hide() };
                 if let Err(e) = result {
                     eprintln!("overlay {}: {e}", if visible { "show" } else { "hide" });
+                } else if visible && !self.click_through_set {
+                    // Safe only after the window has been realized by show().
+                    let _ = window.set_ignore_cursor_events(true);
+                    self.click_through_set = true;
                 }
             }
             None => eprintln!("overlay window missing"),

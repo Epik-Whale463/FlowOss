@@ -136,6 +136,8 @@ fn dirs_home() -> std::path::PathBuf {
 
 fn build_windows(app: &AppHandle) -> tauri::Result<()> {
     // Status overlay: a small pill that must never steal focus (PRD 11.7).
+    // Click-through (ignore cursor events) is applied by the engine after
+    // the first show — calling it on an unrealized GTK window panics in tao.
     WebviewWindowBuilder::new(app, "overlay", WebviewUrl::App("overlay.html".into()))
         .title("FlowOSS")
         .inner_size(320.0, 84.0)
@@ -188,6 +190,13 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
 }
 
 fn main() {
+    // GNOME Wayland doesn't let apps position their own windows, which
+    // breaks the bottom-anchored overlay. XWayland honors positioning,
+    // always-on-top, and click-through, so prefer the x11 backend unless
+    // the user overrides it.
+    if std::env::var_os("GDK_BACKEND").is_none() {
+        std::env::set_var("GDK_BACKEND", "x11");
+    }
     tauri::Builder::default()
         .setup(|app| {
             let handle = app.handle().clone();
