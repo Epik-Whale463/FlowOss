@@ -114,6 +114,22 @@ impl Recording {
         self.buffer.lock().unwrap().len() as f32 / self.source_rate as f32
     }
 
+    /// Return samples captured since `cursor` (a caller-held position in
+    /// the source-rate buffer), resampled to 16 kHz. Used for live
+    /// streaming preview while the recording continues.
+    ///
+    /// Chunk-boundary interpolation is approximate, which is fine for a
+    /// preview; the final transcription uses the full buffer from `stop`.
+    pub fn drain_new(&self, cursor: &mut usize) -> Vec<f32> {
+        let buf = self.buffer.lock().unwrap();
+        if *cursor >= buf.len() {
+            return Vec::new();
+        }
+        let chunk = &buf[*cursor..];
+        *cursor = buf.len();
+        resample_linear(chunk, self.source_rate, SAMPLE_RATE)
+    }
+
     /// Stop the stream and return 16 kHz mono samples.
     pub fn stop(self) -> Vec<f32> {
         drop(self.stream);

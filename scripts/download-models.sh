@@ -19,6 +19,16 @@ else
     echo "Silero VAD already present."
 fi
 
+STREAM_MODEL="sherpa-onnx-streaming-zipformer-en-20M-2023-02-17"
+if [ ! -d "$STREAM_MODEL" ]; then
+    echo "Downloading $STREAM_MODEL (~90MB, live preview)..."
+    curl -SL -o "$STREAM_MODEL.tar.bz2" "$BASE_URL/$STREAM_MODEL.tar.bz2"
+    tar xjf "$STREAM_MODEL.tar.bz2"
+    rm "$STREAM_MODEL.tar.bz2"
+else
+    echo "$STREAM_MODEL already present."
+fi
+
 if [ ! -d "$STT_MODEL" ]; then
     echo "Downloading $STT_MODEL (~700MB)..."
     curl -SL -o "$STT_MODEL.tar.bz2" "$BASE_URL/$STT_MODEL.tar.bz2"

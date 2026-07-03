@@ -18,6 +18,10 @@ pub struct Settings {
     pub model_dir: PathBuf,
     pub vad_model: PathBuf,
     pub threads: i32,
+    /// Show live words in the overlay while speaking (needs the streaming
+    /// preview model).
+    pub live_preview: bool,
+    pub streaming_model_dir: PathBuf,
 }
 
 impl Default for Settings {
@@ -29,6 +33,9 @@ impl Default for Settings {
             model_dir: flowoss_core::default_stt_model_dir(),
             vad_model: flowoss_core::default_vad_model_path(),
             threads: 4,
+            live_preview: true,
+            streaming_model_dir: flowoss_core::models_dir()
+                .join("sherpa-onnx-streaming-zipformer-en-20M-2023-02-17"),
         }
     }
 }

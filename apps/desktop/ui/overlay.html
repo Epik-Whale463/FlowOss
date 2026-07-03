@@ -7,51 +7,92 @@
   html, body { background: transparent; overflow: hidden; height: 100%; }
   body {
     font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-    display: flex; align-items: center; justify-content: center;
+    display: flex; align-items: flex-end; justify-content: center;
+    padding-bottom: 4px;
     -webkit-user-select: none; user-select: none; cursor: default;
   }
+
+  /* ---- liquid glass pill ---- */
   #pill {
-    display: flex; align-items: center; gap: 12px;
-    background: rgba(28, 28, 36, 0.60);
-    backdrop-filter: blur(24px) saturate(1.5);
-    -webkit-backdrop-filter: blur(24px) saturate(1.5);
-    color: #f4f4f6;
-    border: 1px solid rgba(255, 255, 255, 0.16);
+    position: relative;
+    display: flex; align-items: center; gap: 10px;
+    background: linear-gradient(135deg, rgba(40,40,52,0.52), rgba(18,18,26,0.62));
+    backdrop-filter: blur(28px) saturate(1.7);
+    -webkit-backdrop-filter: blur(28px) saturate(1.7);
+    color: #f5f5f8;
     border-radius: 999px;
-    padding: 12px 20px;
-    min-width: 180px; max-width: 300px;
+    padding: 9px 16px;
+    min-width: 132px; max-width: 380px;
     justify-content: center;
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.38),
-                inset 0 1px 0 rgba(255, 255, 255, 0.10);
-    transition: opacity 160ms ease;
+    box-shadow: 0 10px 34px rgba(0,0,0,0.42),
+                inset 0 1px 0 rgba(255,255,255,0.22),
+                inset 0 -1px 0 rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.14);
+    overflow: hidden;
+    transform-origin: 50% 100%;
+    animation: pop 340ms cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: opacity 180ms ease, min-width 260ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  /* moving specular sheen — the "liquid" part */
+  #pill::before {
+    content: ""; position: absolute; inset: 0; border-radius: inherit;
+    background: linear-gradient(115deg,
+      transparent 20%, rgba(255,255,255,0.13) 38%,
+      rgba(255,255,255,0.05) 48%, transparent 60%);
+    background-size: 260% 100%;
+    animation: sheen 5.5s ease-in-out infinite;
+    pointer-events: none;
+  }
+  @keyframes sheen { 0%,100% { background-position: 130% 0; } 50% { background-position: -30% 0; } }
+  @keyframes pop {
+    from { transform: scale(0.72) translateY(10px); opacity: 0; }
+    to   { transform: scale(1) translateY(0); opacity: 1; }
   }
   #pill.hidden { opacity: 0; }
 
   .dot {
-    width: 10px; height: 10px; border-radius: 50%;
-    background: #ff5252; flex: none;
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #ff5f57; flex: none;
+    box-shadow: 0 0 8px rgba(255,95,87,0.8);
     animation: pulse 1.4s ease-in-out infinite;
   }
-  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
 
-  #bars { display: flex; align-items: center; gap: 3px; height: 26px; }
+  #bars { display: flex; align-items: center; gap: 2.5px; height: 18px; flex: none; }
   #bars span {
-    width: 4px; border-radius: 2px; background: #7ee0a3;
-    height: 4px; transition: height 90ms ease-out;
+    width: 3px; border-radius: 2px;
+    background: linear-gradient(180deg, #9ff0bd, #5fd68e);
+    height: 3px; transition: height 90ms ease-out;
   }
 
-  #timer { font-size: 13px; font-variant-numeric: tabular-nums; color: #b9b9c0; }
+  /* live word stream: right-anchored, newest word slides in */
+  #words {
+    display: flex; justify-content: flex-end; align-items: baseline;
+    overflow: hidden; white-space: nowrap;
+    max-width: 250px; font-size: 13px; line-height: 1.3;
+    mask-image: linear-gradient(90deg, transparent, black 28px);
+    -webkit-mask-image: linear-gradient(90deg, transparent, black 28px);
+  }
+  #words .w { margin-left: 4px; }
+  #words .w.new { animation: wordin 240ms cubic-bezier(0.2, 0.9, 0.3, 1.2); }
+  @keyframes wordin {
+    from { opacity: 0; transform: translateY(7px) scale(0.9); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  #words .placeholder { color: #8f8f9a; font-size: 12.5px; }
+
+  #timer { font-size: 11.5px; font-variant-numeric: tabular-nums; color: #a5a5af; flex: none; }
 
   .spinner {
-    width: 16px; height: 16px; flex: none;
-    border: 2px solid rgba(255,255,255,0.18); border-top-color: #f2f2f4;
+    width: 13px; height: 13px; flex: none;
+    border: 2px solid rgba(255,255,255,0.18); border-top-color: #f5f5f8;
     border-radius: 50%; animation: spin 700ms linear infinite;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
   #label {
-    font-size: 14px; white-space: nowrap; overflow: hidden;
-    text-overflow: ellipsis; max-width: 210px;
+    font-size: 12.5px; white-space: nowrap; overflow: hidden;
+    text-overflow: ellipsis; max-width: 230px;
   }
   .ok { color: #7ee0a3; }
   .err { color: #ff8a80; }
@@ -62,40 +103,74 @@
   <div id="pill" class="hidden"></div>
 <script>
   const pill = document.getElementById("pill");
-  const BAR_COUNT = 7;
-  // Organic-looking bar sensitivities, tallest in the middle.
-  const BAR_GAIN = [0.5, 0.8, 1.0, 1.2, 1.0, 0.8, 0.5];
+  const BAR_COUNT = 5;
+  const BAR_GAIN = [0.6, 0.9, 1.2, 0.9, 0.6];
+  let wordCount = 0;
+
+  function renderWords(partial) {
+    const box = pill.querySelector("#words");
+    if (!box) return;
+    const words = partial.trim().split(/\s+/).filter(Boolean);
+    if (words.length === 0) {
+      if (!box.querySelector(".placeholder")) {
+        box.innerHTML = '<span class="placeholder">Listening…</span>';
+        wordCount = 0;
+      }
+      return;
+    }
+    if (box.querySelector(".placeholder")) { box.innerHTML = ""; wordCount = 0; }
+    // Streaming models only append; re-render is cheap, but animate only
+    // genuinely new words so the stream feels alive, not flickery.
+    if (words.length < wordCount) { box.innerHTML = ""; wordCount = 0; }
+    const existing = box.children.length;
+    for (let i = existing; i < words.length; i++) {
+      const span = document.createElement("span");
+      span.className = "w new";
+      span.textContent = words[i];
+      box.appendChild(span);
+    }
+    // Correct earlier words if the decoder revised them (no animation).
+    for (let i = 0; i < Math.min(existing, words.length); i++) {
+      if (box.children[i].textContent !== words[i]) {
+        box.children[i].textContent = words[i];
+      }
+    }
+    wordCount = words.length;
+  }
 
   function render(s) {
     pill.classList.remove("hidden");
     switch (s.state) {
       case "recording": {
-        if (!pill.dataset.mode || pill.dataset.mode !== "rec") {
+        if (pill.dataset.mode !== "rec") {
           pill.dataset.mode = "rec";
+          pill.style.minWidth = "300px";
           pill.innerHTML =
             '<div class="dot"></div><div id="bars">' +
             "<span></span>".repeat(BAR_COUNT) +
-            '</div><div id="timer">0:00</div>';
+            '</div><div id="words"></div><div id="timer">0:00</div>';
+          wordCount = 0;
         }
         const bars = pill.querySelectorAll("#bars span");
-        // level is RMS 0..~0.3 for speech; scale up and clamp.
         const boosted = Math.min(1, s.level * 9);
         bars.forEach((bar, i) => {
           const jitter = 0.75 + Math.random() * 0.5;
-          const h = 4 + boosted * BAR_GAIN[i] * jitter * 22;
-          bar.style.height = Math.min(26, h) + "px";
+          bar.style.height = Math.min(18, 3 + boosted * BAR_GAIN[i] * jitter * 15) + "px";
         });
         const secs = Math.floor(s.secs);
         pill.querySelector("#timer").textContent =
           Math.floor(secs / 60) + ":" + String(secs % 60).padStart(2, "0");
+        renderWords(s.partial ?? "");
         break;
       }
       case "processing":
         pill.dataset.mode = "proc";
+        pill.style.minWidth = "132px";
         pill.innerHTML = '<div class="spinner"></div><div id="label" class="muted">Transcribing…</div>';
         break;
       case "success":
         pill.dataset.mode = "done";
+        pill.style.minWidth = "132px";
         pill.innerHTML =
           '<div id="label"><span class="ok">✓</span> ' +
           (s.pasted ? "Pasted" : "Copied — press Ctrl+V") +
@@ -103,6 +178,7 @@
         break;
       case "no-speech":
         pill.dataset.mode = "done";
+        pill.style.minWidth = "132px";
         pill.innerHTML = '<div id="label" class="muted">No speech detected</div>';
         break;
       case "error":
@@ -123,12 +199,8 @@
   const log = (message) =>
     window.__TAURI__.core.invoke("ui_log", { message }).catch(() => {});
   window.addEventListener("unhandledrejection", (e) => log("overlay rejection: " + e.reason));
-  let logged = false;
   window.__TAURI__.event
-    .listen("flowoss://state", (e) => {
-      if (!logged) { logged = true; log("overlay got first event: " + e.payload.state); }
-      render(e.payload);
-    })
+    .listen("flowoss://state", (e) => render(e.payload))
     .then(() => log("overlay listening"))
     .catch((err) => log("overlay listen failed: " + err));
 </script>

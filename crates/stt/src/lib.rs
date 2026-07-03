@@ -10,6 +10,9 @@ use anyhow::{bail, Context, Result};
 use flowoss_core::SAMPLE_RATE;
 use sherpa_rs::transducer::{TransducerConfig, TransducerRecognizer};
 
+mod streaming;
+pub use streaming::StreamingTranscriber;
+
 pub struct Transcriber {
     recognizer: TransducerRecognizer,
 }
@@ -55,7 +58,7 @@ impl Transcriber {
 }
 
 /// Find `<stem>.int8.onnx` (preferred) or `<stem>.onnx` in `dir`.
-fn find_model_file(dir: &Path, stem: &str) -> Result<PathBuf> {
+pub(crate) fn find_model_file(dir: &Path, stem: &str) -> Result<PathBuf> {
     for name in [format!("{stem}.int8.onnx"), format!("{stem}.onnx")] {
         let path = dir.join(&name);
         if path.exists() {
@@ -63,14 +66,20 @@ fn find_model_file(dir: &Path, stem: &str) -> Result<PathBuf> {
         }
     }
     // Fall back to any file starting with the stem and ending in .onnx
-    // (some exports use names like encoder-epoch-99.onnx).
+    // (some exports use names like encoder-epoch-99.onnx); prefer int8.
     let entries = std::fs::read_dir(dir)
         .with_context(|| format!("model directory not found: {}", dir.display()))?;
-    for entry in entries.flatten() {
-        let name = entry.file_name().to_string_lossy().into_owned();
-        if name.starts_with(stem) && name.ends_with(".onnx") {
-            return Ok(entry.path());
-        }
-    }
-    bail!("no {stem}*.onnx found in {}", dir.display());
+    let mut candidates: Vec<PathBuf> = entries
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| {
+            let name = p.file_name().unwrap_or_default().to_string_lossy().into_owned();
+            name.starts_with(stem) && name.ends_with(".onnx")
+        })
+        .collect();
+    candidates.sort_by_key(|p| !p.to_string_lossy().contains(".int8."));
+    candidates
+        .into_iter()
+        .next()
+        .ok_or_else(|| anyhow::anyhow!("no {stem}*.onnx found in {}", dir.display()))
 }

@@ -1172,6 +1172,7 @@ dependencies = [
  "anyhow",
  "flowoss-core",
  "sherpa-rs",
+ "sherpa-rs-sys",
 ]
 
 [[package]]

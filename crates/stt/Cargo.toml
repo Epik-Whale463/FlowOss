@@ -7,4 +7,5 @@ license.workspace = true
 [dependencies]
 anyhow.workspace = true
 sherpa-rs.workspace = true
+sherpa-rs-sys = { version = "0.6.8", default-features = false, features = ["download-binaries"] }
 flowoss-core.workspace = true

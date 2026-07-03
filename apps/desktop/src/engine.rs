@@ -29,7 +29,7 @@ pub enum Command {
 pub enum StateEvent {
     Loading,
     Idle,
-    Recording { level: f32, secs: f32 },
+    Recording { level: f32, secs: f32, partial: String },
     Processing,
     Success { text: String, pasted: bool },
     NoSpeech,
@@ -71,8 +71,11 @@ struct Engine {
     settings: Settings,
     stt: Option<flowoss_stt::Transcriber>,
     vad: Option<flowoss_vad::SpeechDetector>,
+    streaming: Option<flowoss_stt::StreamingTranscriber>,
     inserter: Option<Inserter>,
     recording: Option<flowoss_audio::Recording>,
+    stream_cursor: usize,
+    partial: String,
     last_transcript: String,
     hide_at: Option<Instant>,
     click_through_set: bool,
@@ -84,8 +87,11 @@ fn run(app: AppHandle, settings: Settings, rx: Receiver<Command>) {
         settings,
         stt: None,
         vad: None,
+        streaming: None,
         inserter: None,
         recording: None,
+        stream_cursor: 0,
+        partial: String::new(),
         last_transcript: std::fs::read_to_string(flowoss_core::last_transcript_path())
             .unwrap_or_default(),
         hide_at: None,
@@ -144,6 +150,21 @@ impl Engine {
                 eprintln!("VAD load failed: {e}");
             }
         }
+        // Live preview is best-effort: no streaming model, no live words.
+        self.streaming = if self.settings.live_preview {
+            match flowoss_stt::StreamingTranscriber::from_model_dir(
+                &self.settings.streaming_model_dir,
+                2,
+            ) {
+                Ok(streaming) => Some(streaming),
+                Err(e) => {
+                    eprintln!("streaming preview unavailable: {e}");
+                    None
+                }
+            }
+        } else {
+            None
+        };
         if self.inserter.is_none() {
             self.inserter = Inserter::new().ok();
         }
@@ -151,9 +172,17 @@ impl Engine {
 
     fn tick(&mut self) {
         if let Some(recording) = &self.recording {
+            if let Some(streaming) = self.streaming.as_mut() {
+                let chunk = recording.drain_new(&mut self.stream_cursor);
+                let text = streaming.feed(&chunk);
+                if !text.is_empty() {
+                    self.partial = text;
+                }
+            }
             self.emit(StateEvent::Recording {
                 level: recording.level(),
                 secs: recording.duration_secs(),
+                partial: self.partial.clone(),
             });
         } else if let Some(hide_at) = self.hide_at {
             if Instant::now() >= hide_at {
@@ -221,8 +250,17 @@ impl Engine {
             Ok(recording) => {
                 self.recording = Some(recording);
                 self.hide_at = None;
+                self.stream_cursor = 0;
+                self.partial.clear();
+                if let Some(streaming) = self.streaming.as_mut() {
+                    streaming.reset();
+                }
                 self.overlay_visible(true);
-                self.emit(StateEvent::Recording { level: 0.0, secs: 0.0 });
+                self.emit(StateEvent::Recording {
+                    level: 0.0,
+                    secs: 0.0,
+                    partial: String::new(),
+                });
                 "recording".into()
             }
             Err(e) => {

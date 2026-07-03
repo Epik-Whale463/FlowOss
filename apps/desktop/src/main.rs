@@ -140,7 +140,7 @@ fn build_windows(app: &AppHandle) -> tauri::Result<()> {
     // the first show — calling it on an unrealized GTK window panics in tao.
     WebviewWindowBuilder::new(app, "overlay", WebviewUrl::App("overlay.html".into()))
         .title("FlowOSS")
-        .inner_size(320.0, 84.0)
+        .inner_size(430.0, 64.0)
         .resizable(false)
         .decorations(false)
         .transparent(true)
