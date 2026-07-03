@@ -1,0 +1,16 @@
+# systemd user unit for the FlowOSS dictation daemon.
+# Install: scripts/install-service.sh
+[Unit]
+Description=FlowOSS local dictation daemon
+# Needs the Wayland session and PipeWire for clipboard + mic.
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/flowoss daemon
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=graphical-session.target
