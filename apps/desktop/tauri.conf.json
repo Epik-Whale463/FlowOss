@@ -1,0 +1,24 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "FlowOSS",
+  "version": "0.1.0",
+  "identifier": "org.flowoss.desktop",
+  "build": {
+    "frontendDist": "ui"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["deb", "appimage"],
+    "icon": ["icons/icon.png"],
+    "category": "Utility",
+    "shortDescription": "Local-first voice dictation",
+    "longDescription": "Hold a key, speak naturally, release, text appears. All speech-to-text runs locally via sherpa-onnx and NVIDIA Parakeet."
+  }
+}

@@ -1,0 +1,123 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: transparent; overflow: hidden; height: 100%; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    display: flex; align-items: center; justify-content: center;
+    -webkit-user-select: none; user-select: none; cursor: default;
+  }
+  #pill {
+    display: flex; align-items: center; gap: 12px;
+    background: rgba(24, 24, 28, 0.94);
+    color: #f2f2f4;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 999px;
+    padding: 12px 20px;
+    min-width: 180px; max-width: 300px;
+    justify-content: center;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+    transition: opacity 160ms ease;
+  }
+  #pill.hidden { opacity: 0; }
+
+  .dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: #ff5252; flex: none;
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+  #bars { display: flex; align-items: center; gap: 3px; height: 26px; }
+  #bars span {
+    width: 4px; border-radius: 2px; background: #7ee0a3;
+    height: 4px; transition: height 90ms ease-out;
+  }
+
+  #timer { font-size: 13px; font-variant-numeric: tabular-nums; color: #b9b9c0; }
+
+  .spinner {
+    width: 16px; height: 16px; flex: none;
+    border: 2px solid rgba(255,255,255,0.18); border-top-color: #f2f2f4;
+    border-radius: 50%; animation: spin 700ms linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  #label {
+    font-size: 14px; white-space: nowrap; overflow: hidden;
+    text-overflow: ellipsis; max-width: 210px;
+  }
+  .ok { color: #7ee0a3; }
+  .err { color: #ff8a80; }
+  .muted { color: #9a9aa2; }
+</style>
+</head>
+<body>
+  <div id="pill" class="hidden"></div>
+<script>
+  const pill = document.getElementById("pill");
+  const BAR_COUNT = 7;
+  // Organic-looking bar sensitivities, tallest in the middle.
+  const BAR_GAIN = [0.5, 0.8, 1.0, 1.2, 1.0, 0.8, 0.5];
+
+  function render(s) {
+    pill.classList.remove("hidden");
+    switch (s.state) {
+      case "recording": {
+        if (!pill.dataset.mode || pill.dataset.mode !== "rec") {
+          pill.dataset.mode = "rec";
+          pill.innerHTML =
+            '<div class="dot"></div><div id="bars">' +
+            "<span></span>".repeat(BAR_COUNT) +
+            '</div><div id="timer">0:00</div>';
+        }
+        const bars = pill.querySelectorAll("#bars span");
+        // level is RMS 0..~0.3 for speech; scale up and clamp.
+        const boosted = Math.min(1, s.level * 9);
+        bars.forEach((bar, i) => {
+          const jitter = 0.75 + Math.random() * 0.5;
+          const h = 4 + boosted * BAR_GAIN[i] * jitter * 22;
+          bar.style.height = Math.min(26, h) + "px";
+        });
+        const secs = Math.floor(s.secs);
+        pill.querySelector("#timer").textContent =
+          Math.floor(secs / 60) + ":" + String(secs % 60).padStart(2, "0");
+        break;
+      }
+      case "processing":
+        pill.dataset.mode = "proc";
+        pill.innerHTML = '<div class="spinner"></div><div id="label" class="muted">Transcribing…</div>';
+        break;
+      case "success":
+        pill.dataset.mode = "done";
+        pill.innerHTML =
+          '<div id="label"><span class="ok">✓</span> ' +
+          (s.pasted ? "Pasted" : "Copied — press Ctrl+V") +
+          "</div>";
+        break;
+      case "no-speech":
+        pill.dataset.mode = "done";
+        pill.innerHTML = '<div id="label" class="muted">No speech detected</div>';
+        break;
+      case "error":
+        pill.dataset.mode = "done";
+        pill.innerHTML = '<div id="label" class="err"></div>';
+        pill.querySelector("#label").textContent = "⚠ " + s.message;
+        break;
+      case "loading":
+        pill.dataset.mode = "load";
+        pill.innerHTML = '<div class="spinner"></div><div id="label" class="muted">Loading model…</div>';
+        break;
+      default:
+        pill.dataset.mode = "";
+        pill.classList.add("hidden");
+    }
+  }
+
+  window.__TAURI__.event.listen("flowoss://state", (e) => render(e.payload));
+</script>
+</body>
+</html>

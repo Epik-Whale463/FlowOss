@@ -1,0 +1,300 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>FlowOSS Settings</title>
+<style>
+  :root {
+    --bg: #fafafa; --card: #ffffff; --text: #1a1a1e; --muted: #6b6b74;
+    --line: #e6e6ea; --accent: #4f6ef7; --accent-text: #ffffff;
+    --ok: #1e9e5a; --err: #d5453c; --seg-bg: #eeeef1;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141417; --card: #1d1d22; --text: #f0f0f3; --muted: #9a9aa2;
+      --line: #2c2c33; --accent: #6d86ff; --accent-text: #ffffff;
+      --ok: #46c47f; --err: #ff7a70; --seg-bg: #29292f;
+    }
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--bg); color: var(--text);
+    font-size: 14px; line-height: 1.45;
+    -webkit-user-select: none; user-select: none;
+  }
+  main { max-width: 620px; margin: 0 auto; padding: 28px 24px 48px; }
+
+  header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 20px; }
+  header h1 { font-size: 20px; font-weight: 650; }
+  header .sub { color: var(--muted); font-size: 13px; }
+
+  .hero {
+    display: flex; align-items: center; gap: 16px;
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 14px; padding: 18px 20px; margin-bottom: 16px;
+  }
+  .hero button {
+    background: var(--accent); color: var(--accent-text);
+    border: none; border-radius: 999px; padding: 10px 22px;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  .hero button:active { transform: scale(0.98); }
+  #status { color: var(--muted); }
+  #status .ok { color: var(--ok); font-weight: 600; }
+  #status .rec { color: var(--err); font-weight: 600; }
+
+  section {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 14px; padding: 16px 20px; margin-bottom: 12px;
+  }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 8px 0; }
+  .row + .row { border-top: 1px solid var(--line); }
+  .row .info { flex: 1; min-width: 0; }
+  .row .label { font-weight: 550; }
+  .row .desc { color: var(--muted); font-size: 12.5px; margin-top: 1px; }
+
+  select, input[type=text] {
+    background: var(--seg-bg); color: var(--text);
+    border: 1px solid var(--line); border-radius: 8px;
+    padding: 7px 10px; font-size: 13.5px; max-width: 260px;
+  }
+  select:focus, input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+
+  .seg { display: inline-flex; background: var(--seg-bg); border-radius: 9px; padding: 3px; }
+  .seg label {
+    padding: 5px 14px; border-radius: 7px; cursor: pointer;
+    color: var(--muted); font-weight: 550; font-size: 13px;
+  }
+  .seg input { display: none; }
+  .seg input:checked + span { }
+  .seg label:has(input:checked) { background: var(--card); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.14); }
+
+  .ghost {
+    background: none; border: 1px solid var(--line); color: var(--text);
+    border-radius: 8px; padding: 6px 14px; font-size: 13px; cursor: pointer;
+  }
+  .ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+  #transcript {
+    background: var(--seg-bg); border-radius: 10px; padding: 12px 14px;
+    color: var(--muted); font-size: 13.5px; margin-top: 10px;
+    max-height: 110px; overflow-y: auto; -webkit-user-select: text; user-select: text;
+    white-space: pre-wrap; word-break: break-word;
+  }
+  #transcript.filled { color: var(--text); }
+
+  .pillinfo { font-size: 12.5px; color: var(--muted); }
+  .pillinfo code {
+    background: var(--seg-bg); border-radius: 5px; padding: 2px 7px;
+    font-size: 12px; font-family: ui-monospace, monospace;
+  }
+
+  footer { color: var(--muted); font-size: 12px; margin-top: 24px; text-align: center; }
+
+  #toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translate(-50%, 8px);
+    background: var(--text); color: var(--bg);
+    border-radius: 999px; padding: 8px 18px; font-size: 13px; font-weight: 550;
+    opacity: 0; pointer-events: none; transition: all 180ms ease;
+  }
+  #toast.show { opacity: 1; transform: translate(-50%, 0); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>FlowOSS</h1>
+    <div class="sub">local dictation — nothing leaves this machine</div>
+  </header>
+
+  <div class="hero">
+    <button id="test">Test dictation</button>
+    <div id="status">Ready</div>
+  </div>
+
+  <section>
+    <div class="row">
+      <div class="info">
+        <div class="label">Shortcut</div>
+        <div class="desc">Press once to record, again to transcribe &amp; insert</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="text" id="hotkey" placeholder="<Super>z" style="width:130px">
+        <button class="ghost" id="applyHotkey">Apply</button>
+      </div>
+    </div>
+    <div class="row">
+      <div class="info">
+        <div class="label">Microphone</div>
+        <div class="desc">System default is used unless you pick one</div>
+      </div>
+      <select id="device"></select>
+    </div>
+    <div class="row">
+      <div class="info">
+        <div class="label">After transcribing</div>
+        <div class="desc">Auto-paste needs ydotool; otherwise you press Ctrl+V</div>
+      </div>
+      <div class="seg" id="pasteMode">
+        <label><input type="radio" name="paste" value="auto"><span>Auto-paste</span></label>
+        <label><input type="radio" name="paste" value="copy"><span>Copy only</span></label>
+      </div>
+    </div>
+    <div class="row">
+      <div class="info">
+        <div class="label">Cleanup</div>
+        <div class="desc">Basic fixes spacing and punctuation gaps</div>
+      </div>
+      <div class="seg" id="cleanup">
+        <label><input type="radio" name="cleanup" value="raw"><span>Raw</span></label>
+        <label><input type="radio" name="cleanup" value="basic"><span>Basic</span></label>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="row">
+      <div class="info">
+        <div class="label">Model</div>
+        <div class="desc" id="modelDesc">checking…</div>
+      </div>
+      <div class="pillinfo" id="modelState"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="row" style="border:none">
+      <div class="info"><div class="label">Last transcript</div></div>
+      <button class="ghost" id="copyLast">Copy</button>
+    </div>
+    <div id="transcript">Nothing yet — dictate something.</div>
+  </section>
+
+  <footer>
+    Speech model: NVIDIA Parakeet (CC-BY-4.0) via sherpa-onnx (Apache-2.0) · VAD: Silero
+  </footer>
+</main>
+<div id="toast">Saved</div>
+
+<script>
+  const { invoke } = window.__TAURI__.core;
+  const $ = (id) => document.getElementById(id);
+  let settings = null;
+
+  function toast(msg) {
+    const t = $("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    clearTimeout(t._h);
+    t._h = setTimeout(() => t.classList.remove("show"), 1400);
+  }
+
+  async function save() {
+    try {
+      await invoke("set_settings", { new: settings });
+      toast("Saved");
+    } catch (e) {
+      toast("Error: " + e);
+    }
+  }
+
+  async function loadDevices() {
+    const devices = await invoke("list_microphones");
+    const sel = $("device");
+    sel.innerHTML = "";
+    const def = document.createElement("option");
+    def.value = ""; def.textContent = "System default";
+    sel.appendChild(def);
+    for (const name of devices) {
+      const o = document.createElement("option");
+      o.value = name; o.textContent = name;
+      sel.appendChild(o);
+    }
+    sel.value = settings.device ?? "";
+    if (sel.value !== (settings.device ?? "")) sel.value = ""; // device gone
+  }
+
+  async function loadModel() {
+    const m = await invoke("model_status");
+    $("modelDesc").textContent = m.path;
+    $("modelState").innerHTML = m.ready
+      ? '<span style="color:var(--ok)">● ready</span> · ' + m.size_mb + " MB"
+      : '<span style="color:var(--err)">● missing</span> — run scripts/download-models.sh';
+  }
+
+  async function loadTranscript() {
+    try {
+      const text = await invoke("last_transcript");
+      if (text) {
+        $("transcript").textContent = text;
+        $("transcript").classList.add("filled");
+      }
+    } catch {}
+  }
+
+  async function init() {
+    settings = await invoke("get_settings");
+    document.querySelector(`#pasteMode input[value="${settings.paste_mode}"]`)?.click?.();
+    document.querySelector(`#pasteMode input[value="${settings.paste_mode}"]`) &&
+      (document.querySelector(`#pasteMode input[value="${settings.paste_mode}"]`).checked = true);
+    const cl = document.querySelector(`#cleanup input[value="${settings.cleanup}"]`);
+    if (cl) cl.checked = true;
+    $("hotkey").value = (await invoke("hotkey_binding")) ?? "";
+    await Promise.all([loadDevices(), loadModel(), loadTranscript()]);
+  }
+
+  $("device").addEventListener("change", () => {
+    settings.device = $("device").value || null;
+    save();
+  });
+  $("pasteMode").addEventListener("change", (e) => {
+    settings.paste_mode = e.target.value;
+    save();
+  });
+  $("cleanup").addEventListener("change", (e) => {
+    settings.cleanup = e.target.value;
+    save();
+  });
+  $("applyHotkey").addEventListener("click", async () => {
+    try {
+      await invoke("set_hotkey_binding", { binding: $("hotkey").value.trim() });
+      toast("Shortcut updated");
+    } catch (e) {
+      toast("Error: " + e);
+    }
+  });
+  $("test").addEventListener("click", () => invoke("toggle_dictation").catch(() => {}));
+  $("copyLast").addEventListener("click", async () => {
+    await invoke("copy_last");
+    toast("Copied");
+  });
+
+  window.__TAURI__.event.listen("flowoss://state", (e) => {
+    const s = e.payload;
+    const el = $("status");
+    if (s.state === "recording") {
+      el.innerHTML = '<span class="rec">● Recording…</span> ' + Math.floor(s.secs) + "s";
+      $("test").textContent = "Stop";
+    } else if (s.state === "processing") {
+      el.textContent = "Transcribing…";
+      $("test").textContent = "Test dictation";
+    } else if (s.state === "success") {
+      el.innerHTML = '<span class="ok">✓ ' + (s.pasted ? "Pasted" : "Copied") + "</span>";
+      loadTranscript();
+    } else if (s.state === "no-speech") {
+      el.textContent = "No speech detected";
+    } else if (s.state === "error") {
+      el.textContent = "⚠ " + s.message;
+    } else if (s.state === "loading") {
+      el.textContent = "Loading model…";
+    } else {
+      el.textContent = "Ready";
+      $("test").textContent = "Test dictation";
+    }
+  });
+
+  init();
+</script>
+</body>
+</html>

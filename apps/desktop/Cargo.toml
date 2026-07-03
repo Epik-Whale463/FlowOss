@@ -1,0 +1,25 @@
+[package]
+name = "flowoss-desktop"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "flowoss-desktop"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tauri = { workspace = true, features = ["tray-icon", "image-png"] }
+toml.workspace = true
+flowoss-core.workspace = true
+flowoss-audio.workspace = true
+flowoss-stt.workspace = true
+flowoss-vad.workspace = true
+flowoss-text-cleanup.workspace = true
+flowoss-insertion.workspace = true

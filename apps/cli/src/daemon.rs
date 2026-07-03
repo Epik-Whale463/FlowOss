@@ -10,23 +10,13 @@
 
 use std::io::{BufRead, BufReader, Write};
 use std::os::unix::net::{UnixListener, UnixStream};
-use std::path::PathBuf;
 use std::time::Instant;
 
 use anyhow::{bail, Context, Result};
 use flowoss_insertion::{notify, InsertOutcome, Inserter, PasteMode};
 use flowoss_text_cleanup::CleanupMode;
 
-pub fn socket_path() -> PathBuf {
-    let runtime = std::env::var_os("XDG_RUNTIME_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(std::env::temp_dir);
-    runtime.join("flowoss.sock")
-}
-
-fn last_transcript_path() -> PathBuf {
-    flowoss_core::data_dir().join("last_transcript.txt")
-}
+pub use flowoss_core::{last_transcript_path, socket_path};
 
 pub struct DaemonOptions {
     pub device: Option<String>,
