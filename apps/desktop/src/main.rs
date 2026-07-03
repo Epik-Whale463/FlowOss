@@ -39,6 +39,11 @@ impl EngineHandle {
 }
 
 #[tauri::command]
+fn ui_log(message: String) {
+    eprintln!("[ui] {message}");
+}
+
+#[tauri::command]
 fn get_settings() -> Settings {
     Settings::load()
 }
@@ -204,6 +209,7 @@ fn main() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            ui_log,
             get_settings,
             set_settings,
             list_microphones,

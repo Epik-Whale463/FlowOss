@@ -91,8 +91,14 @@ impl Engine {
     }
 
     fn overlay_visible(&self, visible: bool) {
-        if let Some(window) = self.app.get_webview_window("overlay") {
-            let _ = if visible { window.show() } else { window.hide() };
+        match self.app.get_webview_window("overlay") {
+            Some(window) => {
+                let result = if visible { window.show() } else { window.hide() };
+                if let Err(e) = result {
+                    eprintln!("overlay {}: {e}", if visible { "show" } else { "hide" });
+                }
+            }
+            None => eprintln!("overlay window missing"),
         }
     }
 

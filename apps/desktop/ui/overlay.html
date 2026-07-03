@@ -117,7 +117,17 @@
     }
   }
 
-  window.__TAURI__.event.listen("flowoss://state", (e) => render(e.payload));
+  const log = (message) =>
+    window.__TAURI__.core.invoke("ui_log", { message }).catch(() => {});
+  window.addEventListener("unhandledrejection", (e) => log("overlay rejection: " + e.reason));
+  let logged = false;
+  window.__TAURI__.event
+    .listen("flowoss://state", (e) => {
+      if (!logged) { logged = true; log("overlay got first event: " + e.payload.state); }
+      render(e.payload);
+    })
+    .then(() => log("overlay listening"))
+    .catch((err) => log("overlay listen failed: " + err));
 </script>
 </body>
 </html>
