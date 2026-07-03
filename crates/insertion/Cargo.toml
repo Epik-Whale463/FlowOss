@@ -7,3 +7,6 @@ license.workspace = true
 [dependencies]
 anyhow.workspace = true
 arboard = { version = "3.6", default-features = false, features = ["wayland-data-control"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+x11rb = { version = "0.13", features = ["xtest"] }
