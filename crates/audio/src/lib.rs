@@ -13,19 +13,21 @@ use flowoss_core::SAMPLE_RATE;
 /// Names of all available input devices, default first.
 pub fn list_input_devices() -> Result<Vec<String>> {
     let host = cpal::default_host();
-    let default_name = host
-        .default_input_device()
-        .and_then(|d| d.name().ok());
+    let default_name = host.default_input_device().and_then(|d| device_name(&d));
     let mut names: Vec<String> = host
         .input_devices()
         .context("failed to enumerate input devices")?
-        .filter_map(|d| d.name().ok())
+        .filter_map(|d| device_name(&d))
         .collect();
     if let Some(def) = default_name {
         names.retain(|n| *n != def);
         names.insert(0, def);
     }
     Ok(names)
+}
+
+fn device_name(device: &cpal::Device) -> Option<String> {
+    device.description().ok().map(|d| d.name().to_string())
 }
 
 fn find_device(name: Option<&str>) -> Result<cpal::Device> {
@@ -36,7 +38,7 @@ fn find_device(name: Option<&str>) -> Result<cpal::Device> {
             .ok_or_else(|| anyhow!("no default input device found")),
         Some(wanted) => host
             .input_devices()?
-            .find(|d| d.name().map(|n| n == wanted).unwrap_or(false))
+            .find(|d| device_name(d).as_deref() == Some(wanted))
             .ok_or_else(|| anyhow!("input device not found: {wanted}")),
     }
 }
@@ -57,7 +59,7 @@ impl Recording {
             .default_input_config()
             .context("failed to query default input config")?;
         let channels = config.channels() as usize;
-        let source_rate = config.sample_rate().0;
+        let source_rate = config.sample_rate();
         let buffer = Arc::new(Mutex::new(Vec::<f32>::new()));
 
         let err_fn = |e| eprintln!("audio stream error: {e}");
@@ -65,7 +67,7 @@ impl Recording {
             cpal::SampleFormat::F32 => {
                 let buf = buffer.clone();
                 device.build_input_stream(
-                    &config.into(),
+                    config.into(),
                     move |data: &[f32], _: &_| push_mono(&buf, data, channels),
                     err_fn,
                     None,
@@ -74,7 +76,7 @@ impl Recording {
             cpal::SampleFormat::I16 => {
                 let buf = buffer.clone();
                 device.build_input_stream(
-                    &config.into(),
+                    config.into(),
                     move |data: &[i16], _: &_| {
                         let floats: Vec<f32> =
                             data.iter().map(|&s| s as f32 / i16::MAX as f32).collect();

@@ -1,0 +1,5 @@
+# sherpa-rs (download-binaries) copies libsherpa-onnx-c-api.so and
+# libonnxruntime.so next to the built binaries; make the loader find them
+# there without LD_LIBRARY_PATH.
+[target.'cfg(target_os = "linux")']
+rustflags = ["-C", "link-args=-Wl,-rpath,$ORIGIN"]
