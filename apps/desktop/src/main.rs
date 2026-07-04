@@ -3,6 +3,7 @@
 
 #![cfg_attr(all(not(debug_assertions), windows), windows_subsystem = "windows")]
 
+mod download;
 mod engine;
 mod hotkey;
 mod settings;
@@ -17,7 +18,7 @@ use serde::Serialize;
 use settings::Settings;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
-use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{webview::Color, AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
 
 struct EngineHandle(Mutex<Sender<Command>>);
 
@@ -99,11 +100,31 @@ fn open_url(url: String) -> Result<(), String> {
     if !url.starts_with("https://") && !url.starts_with("http://") {
         return Err("only http(s) links can be opened".into());
     }
+    open_external(&url)
+}
+
+#[cfg(target_os = "linux")]
+fn open_external(url: &str) -> Result<(), String> {
     std::process::Command::new("xdg-open")
-        .arg(&url)
+        .arg(url)
         .spawn()
         .map(|_| ())
         .map_err(|e| e.to_string())
+}
+
+#[cfg(windows)]
+fn open_external(url: &str) -> Result<(), String> {
+    // explorer.exe opens a URL in the default browser without a console flash.
+    std::process::Command::new("explorer")
+        .arg(url)
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+}
+
+#[cfg(not(any(target_os = "linux", windows)))]
+fn open_external(url: &str) -> Result<(), String> {
+    Err(format!("cannot open {url} on this platform"))
 }
 
 #[derive(Serialize)]
@@ -145,19 +166,52 @@ fn assist_hotkey_binding() -> Option<String> {
 }
 
 #[tauri::command]
-fn set_hotkey_binding(binding: String) -> Result<(), String> {
-    let trigger = format!("{} trigger", cli_binary_path());
-    hotkey::set_binding(&binding, &trigger)
+fn set_hotkey_binding(app: AppHandle, binding: String) -> Result<(), String> {
+    apply_dictation_binding(&app, &binding)
 }
 
 #[tauri::command]
-fn set_assist_hotkey_binding(binding: String) -> Result<(), String> {
-    let trigger = format!("{} assist", cli_binary_path());
-    hotkey::set_assist_binding(&binding, &trigger)
+fn set_assist_hotkey_binding(app: AppHandle, binding: String) -> Result<(), String> {
+    apply_assist_binding(&app, &binding)
 }
 
-/// Path of the `flowoss` CLI used by the desktop hotkey. Prefer the
+#[cfg(target_os = "linux")]
+fn apply_dictation_binding(_app: &AppHandle, binding: &str) -> Result<(), String> {
+    let trigger = format!("{} trigger", cli_binary_path());
+    hotkey::set_binding(binding, &trigger)
+}
+
+#[cfg(target_os = "linux")]
+fn apply_assist_binding(_app: &AppHandle, binding: &str) -> Result<(), String> {
+    let trigger = format!("{} assist", cli_binary_path());
+    hotkey::set_assist_binding(binding, &trigger)
+}
+
+#[cfg(windows)]
+fn apply_dictation_binding(app: &AppHandle, binding: &str) -> Result<(), String> {
+    hotkey::set_binding(binding, "")?;
+    hotkey::register_all(app)
+}
+
+#[cfg(windows)]
+fn apply_assist_binding(app: &AppHandle, binding: &str) -> Result<(), String> {
+    hotkey::set_assist_binding(binding, "")?;
+    hotkey::register_all(app)
+}
+
+#[cfg(not(any(target_os = "linux", windows)))]
+fn apply_dictation_binding(_app: &AppHandle, binding: &str) -> Result<(), String> {
+    hotkey::set_binding(binding, "")
+}
+
+#[cfg(not(any(target_os = "linux", windows)))]
+fn apply_assist_binding(_app: &AppHandle, binding: &str) -> Result<(), String> {
+    hotkey::set_assist_binding(binding, "")
+}
+
+/// Path of the `flowoss` CLI used by the Linux desktop hotkey. Prefer the
 /// installed copy; fall back to one next to this executable.
+#[cfg(target_os = "linux")]
 fn cli_binary_path() -> String {
     let installed = dirs_home().join(".local/bin/flowoss");
     if installed.exists() {
@@ -171,6 +225,7 @@ fn cli_binary_path() -> String {
         .unwrap_or_else(|| "flowoss".into())
 }
 
+#[cfg(target_os = "linux")]
 fn dirs_home() -> std::path::PathBuf {
     std::env::var_os("HOME")
         .map(Into::into)
@@ -181,12 +236,13 @@ fn build_windows(app: &AppHandle) -> tauri::Result<()> {
     // Status overlay: a small pill that must never steal focus (PRD 11.7).
     // Click-through (ignore cursor events) is applied by the engine after
     // the first show — calling it on an unrealized GTK window panics in tao.
-    WebviewWindowBuilder::new(app, "overlay", WebviewUrl::App("overlay.html".into()))
+    let overlay = WebviewWindowBuilder::new(app, "overlay", WebviewUrl::App("overlay.html".into()))
         .title("FlowOSS")
-        .inner_size(430.0, 64.0)
+        .inner_size(144.0, 44.0)
         .resizable(false)
         .decorations(false)
         .transparent(true)
+        .background_color(Color(0, 0, 0, 0))
         .shadow(false)
         .always_on_top(true)
         .skip_taskbar(true)
@@ -194,6 +250,7 @@ fn build_windows(app: &AppHandle) -> tauri::Result<()> {
         .focusable(false)
         .visible(false)
         .build()?;
+    let _ = overlay.set_background_color(Some(Color(0, 0, 0, 0)));
 
     WebviewWindowBuilder::new(app, "settings", WebviewUrl::App("settings.html".into()))
         .title("FlowOSS Settings")
@@ -237,18 +294,32 @@ fn main() {
     // breaks the bottom-anchored overlay. XWayland honors positioning,
     // always-on-top, and click-through, so prefer the x11 backend unless
     // the user overrides it.
+    #[cfg(target_os = "linux")]
     if std::env::var_os("GDK_BACKEND").is_none() {
         std::env::set_var("GDK_BACKEND", "x11");
     }
-    tauri::Builder::default()
+
+    let builder = tauri::Builder::default();
+    // Windows registers global hotkeys itself via the plugin (Wayland can't,
+    // so Linux binds them through GNOME settings instead — see hotkey.rs).
+    #[cfg(windows)]
+    let builder = builder.plugin(hotkey::plugin());
+
+    builder
         .setup(|app| {
             let handle = app.handle().clone();
             build_windows(&handle)?;
             build_tray(&handle)?;
 
-            let engine_tx = engine::spawn(handle, Settings::load());
+            let engine_tx = engine::spawn(handle.clone(), Settings::load());
             socket::spawn(engine_tx.clone())?;
             app.manage(EngineHandle(Mutex::new(engine_tx)));
+
+            // Register the global hotkeys now that the engine is reachable.
+            #[cfg(windows)]
+            if let Err(e) = hotkey::register_all(&handle) {
+                eprintln!("global hotkey registration failed: {e}");
+            }
             Ok(())
         })
         .on_window_event(|window, event| {

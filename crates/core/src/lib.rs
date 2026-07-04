@@ -2,6 +2,8 @@
 
 use std::path::PathBuf;
 
+pub mod ipc;
+
 /// Sample rate all internal audio is normalized to (Parakeet + Silero VAD).
 pub const SAMPLE_RATE: u32 = 16_000;
 

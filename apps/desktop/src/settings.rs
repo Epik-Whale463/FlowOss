@@ -40,7 +40,7 @@ impl Default for Settings {
             model_dir: flowoss_core::default_stt_model_dir(),
             vad_model: flowoss_core::default_vad_model_path(),
             threads: 4,
-            live_preview: true,
+            live_preview: false,
             streaming_model_dir: flowoss_core::models_dir()
                 .join("sherpa-onnx-streaming-zipformer-en-20M-2023-02-17"),
             assist_provider: "ollama".into(),

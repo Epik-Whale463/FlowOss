@@ -42,6 +42,8 @@ pub enum Command {
 #[serde(tag = "state", rename_all = "kebab-case")]
 pub enum StateEvent {
     Loading,
+    /// First-run model download progress.
+    Downloading { message: String, pct: u32 },
     Idle,
     Recording { level: f32, secs: f32, partial: String },
     AssistRecording {
@@ -70,23 +72,25 @@ const LINGER: Duration = Duration::from_millis(1600);
 const ANSWER_LINGER: Duration = Duration::from_secs(30);
 /// Grace period after the pointer leaves a pinned answer.
 const HOVER_LINGER: Duration = Duration::from_secs(8);
-const PILL_SIZE: (u32, u32) = (430, 64);
-const ANSWER_SIZE: (u32, u32) = (640, 340);
+/// Keep speech models in memory briefly after use so repeated dictation is fast.
+const MODEL_KEEP_WARM: Duration = Duration::from_secs(10 * 60);
+const PILL_SIZE: (u32, u32) = (144, 44);
+const ANSWER_SIZE: (u32, u32) = (640, 380);
 
 /// Place the overlay just above the bottom edge, horizontally centered on
 /// the monitor the cursor's window is on (or the primary one).
-fn position_bottom_center(window: &tauri::WebviewWindow) {
+fn position_bottom_center(window: &tauri::WebviewWindow, size: (u32, u32)) {
     let monitor = window
         .current_monitor()
         .ok()
         .flatten()
         .or_else(|| window.primary_monitor().ok().flatten());
-    let (Some(monitor), Ok(size)) = (monitor, window.outer_size()) else {
+    let Some(monitor) = monitor else {
         return;
     };
     let margin = (56.0 * monitor.scale_factor()) as i32;
-    let x = monitor.position().x + (monitor.size().width as i32 - size.width as i32) / 2;
-    let y = monitor.position().y + monitor.size().height as i32 - size.height as i32 - margin;
+    let x = monitor.position().x + (monitor.size().width as i32 - size.0 as i32) / 2;
+    let y = monitor.position().y + monitor.size().height as i32 - size.1 as i32 - margin;
     let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
 }
 
@@ -107,7 +111,6 @@ struct Engine {
     settings: Settings,
     stt: Option<flowoss_stt::Transcriber>,
     vad: Option<flowoss_vad::SpeechDetector>,
-    streaming: Option<flowoss_stt::StreamingTranscriber>,
     inserter: Option<Inserter>,
     recording: Option<flowoss_audio::Recording>,
     assist_context: Option<String>,
@@ -115,10 +118,9 @@ struct Engine {
     assist_gen: u64,
     /// True while the interactive answer card is on screen.
     answer_showing: bool,
-    stream_cursor: usize,
-    partial: String,
     last_transcript: String,
     hide_at: Option<Instant>,
+    models_unload_at: Option<Instant>,
     click_through: Option<bool>,
 }
 
@@ -129,21 +131,18 @@ fn run(app: AppHandle, settings: Settings, tx: Sender<Command>, rx: Receiver<Com
         settings,
         stt: None,
         vad: None,
-        streaming: None,
         inserter: None,
         recording: None,
         assist_context: None,
         assist_gen: 0,
         answer_showing: false,
-        stream_cursor: 0,
-        partial: String::new(),
         last_transcript: std::fs::read_to_string(flowoss_core::last_transcript_path())
             .unwrap_or_default(),
         hide_at: None,
+        models_unload_at: None,
         click_through: None,
     };
-    engine.emit(StateEvent::Loading);
-    engine.load_models();
+    engine.ensure_models_ready();
     engine.emit(StateEvent::Idle);
 
     loop {
@@ -173,7 +172,7 @@ impl Engine {
             Some(window) => {
                 if visible {
                     let _ = window.set_size(tauri::PhysicalSize::new(size.0, size.1));
-                    position_bottom_center(&window);
+                    position_bottom_center(&window, size);
                 }
                 let result = if visible { window.show() } else { window.hide() };
                 if let Err(e) = result {
@@ -190,63 +189,92 @@ impl Engine {
         }
     }
 
-    fn load_models(&mut self) {
-        match flowoss_stt::Transcriber::from_model_dir(&self.settings.model_dir, self.settings.threads)
-        {
-            Ok(stt) => self.stt = Some(stt),
-            Err(e) => {
-                self.stt = None;
-                eprintln!("STT load failed: {e}");
-            }
+    /// On first run, download the speech models before trying to load them,
+    /// keeping the overlay updated with progress.
+    fn ensure_models_ready(&mut self) {
+        if crate::download::models_present(&self.settings) {
+            return;
         }
-        match flowoss_vad::SpeechDetector::new(&self.settings.vad_model) {
-            Ok(vad) => self.vad = Some(vad),
+        self.overlay_visible(true);
+        self.emit(StateEvent::Downloading {
+            message: "Preparing first-run download…".into(),
+            pct: 0,
+        });
+        let app = self.app.clone();
+        let result = crate::download::ensure_models(&self.settings, |label, pct| {
+            let _ = app.emit(
+                STATE_EVENT,
+                &StateEvent::Downloading {
+                    message: label.to_string(),
+                    pct,
+                },
+            );
+        });
+        if let Err(e) = result {
+            self.show_error(&format!("Model download failed: {e}"));
+        }
+    }
+
+    fn ensure_models_loaded(&mut self) -> Result<(), String> {
+        if self.stt.is_some() {
+            self.touch_models();
+            return Ok(());
+        }
+
+        self.overlay_visible(true);
+        self.emit(StateEvent::Loading);
+        self.load_models()?;
+        self.emit(StateEvent::Idle);
+        Ok(())
+    }
+
+    fn load_models(&mut self) -> Result<(), String> {
+        self.unload_models();
+        let stt = flowoss_stt::Transcriber::from_model_dir(
+            &self.settings.model_dir,
+            self.settings.threads,
+        )
+        .map_err(|e| format!("STT load failed: {e}"))?;
+        let vad = match flowoss_vad::SpeechDetector::new(&self.settings.vad_model) {
+            Ok(vad) => Some(vad),
             Err(e) => {
-                self.vad = None;
                 eprintln!("VAD load failed: {e}");
+                None
             }
-        }
-        // Live preview is best-effort: no streaming model, no live words.
-        self.streaming = if self.settings.live_preview {
-            match flowoss_stt::StreamingTranscriber::from_model_dir(
-                &self.settings.streaming_model_dir,
-                2,
-            ) {
-                Ok(streaming) => Some(streaming),
-                Err(e) => {
-                    eprintln!("streaming preview unavailable: {e}");
-                    None
-                }
-            }
-        } else {
-            None
         };
+        self.stt = Some(stt);
+        self.vad = vad;
+        self.touch_models();
         if self.inserter.is_none() {
             self.inserter = Inserter::new().ok();
         }
+        Ok(())
+    }
+
+    fn touch_models(&mut self) {
+        self.models_unload_at = Some(Instant::now() + MODEL_KEEP_WARM);
+    }
+
+    fn unload_models(&mut self) {
+        self.stt = None;
+        self.vad = None;
+        self.models_unload_at = None;
     }
 
     fn tick(&mut self) {
         if let Some(recording) = &self.recording {
-            if let Some(streaming) = self.streaming.as_mut() {
-                let chunk = recording.drain_new(&mut self.stream_cursor);
-                let text = streaming.feed(&chunk);
-                if !text.is_empty() {
-                    self.partial = text;
-                }
-            }
             if let Some(context) = &self.assist_context {
                 self.emit(StateEvent::AssistRecording {
                     level: recording.level(),
                     secs: recording.duration_secs(),
-                    partial: self.partial.clone(),
+                    partial: String::new(),
                     context_preview: preview(context),
                 });
             } else {
                 self.emit(StateEvent::Recording {
                     level: recording.level(),
                     secs: recording.duration_secs(),
-                    partial: self.partial.clone(),
+                    partial: String::new(),
                 });
             }
         } else if let Some(hide_at) = self.hide_at {
@@ -256,6 +284,11 @@ impl Engine {
                 self.overlay_visible(false);
                 self.emit(StateEvent::Idle);
             }
+        }
+        if self.recording.is_none()
+            && self.models_unload_at.is_some_and(|deadline| Instant::now() >= deadline)
+        {
+            self.unload_models();
         }
     }
 
@@ -284,9 +317,7 @@ impl Engine {
                     || new.threads != self.settings.threads;
                 self.settings = new;
                 if reload {
-                    self.emit(StateEvent::Loading);
-                    self.load_models();
-                    self.emit(StateEvent::Idle);
+                    self.unload_models();
                 }
             }
             Command::AssistDone {
@@ -363,11 +394,8 @@ impl Engine {
     }
 
     fn start_recording(&mut self) -> String {
-        if self.stt.is_none() {
-            let message = format!(
-                "Model not loaded — check model directory {}",
-                self.settings.model_dir.display()
-            );
+        if let Err(e) = self.ensure_models_loaded() {
+            let message = format!("Model not loaded — {e}");
             self.show_error(&message);
             return format!("error: {message}");
         }
@@ -376,11 +404,6 @@ impl Engine {
                 self.recording = Some(recording);
                 self.hide_at = None;
                 self.answer_showing = false;
-                self.stream_cursor = 0;
-                self.partial.clear();
-                if let Some(streaming) = self.streaming.as_mut() {
-                    streaming.reset();
-                }
                 self.overlay_visible(true);
                 self.emit(StateEvent::Recording {
                     level: 0.0,
@@ -398,11 +421,8 @@ impl Engine {
     }
 
     fn start_assist_recording(&mut self) -> String {
-        if self.stt.is_none() {
-            let message = format!(
-                "Model not loaded — check model directory {}",
-                self.settings.model_dir.display()
-            );
+        if let Err(e) = self.ensure_models_loaded() {
+            let message = format!("Model not loaded — {e}");
             self.show_error(&message);
             return format!("error: {message}");
         }
@@ -422,11 +442,6 @@ impl Engine {
                 self.assist_context = Some(context.clone());
                 self.hide_at = None;
                 self.answer_showing = false;
-                self.stream_cursor = 0;
-                self.partial.clear();
-                if let Some(streaming) = self.streaming.as_mut() {
-                    streaming.reset();
-                }
                 self.overlay_visible(true);
                 self.emit(StateEvent::AssistRecording {
                     level: 0.0,
@@ -447,6 +462,7 @@ impl Engine {
 
     fn finish_recording(&mut self, recording: flowoss_audio::Recording) -> String {
         let samples = recording.stop();
+        self.touch_models();
         self.emit(StateEvent::Processing);
         self.overlay_visible(true);
 
@@ -504,6 +520,7 @@ impl Engine {
         reply: Option<Sender<String>>,
     ) {
         let samples = recording.stop();
+        self.touch_models();
         self.emit(StateEvent::Processing);
         self.overlay_visible(true);
 

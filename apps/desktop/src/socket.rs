@@ -1,13 +1,16 @@
-//! Unix socket listener — the same protocol the CLI daemon speaks, so
-//! `flowoss trigger` (bound to the desktop hotkey) keeps working when the
-//! desktop app is running.
+//! Local-socket listener — the same protocol the CLI daemon speaks, so
+//! `flowoss trigger` keeps working when the desktop app is running. On Linux
+//! this is the socket that GNOME's keyboard shortcut talks to; on Windows the
+//! desktop app registers global hotkeys directly, but the listener still lets
+//! the `flowoss` CLI drive it.
 
 use std::io::{BufRead, BufReader, Write};
-use std::os::unix::net::{UnixListener, UnixStream};
 use std::sync::mpsc::{channel, Sender};
 use std::time::Duration;
 
 use anyhow::{bail, Context, Result};
+use flowoss_core::ipc;
+use interprocess::local_socket::{prelude::*, Listener};
 
 use crate::engine::Command;
 
@@ -22,31 +25,34 @@ pub fn spawn(engine: Sender<Command>) -> Result<()> {
 
 /// Bind the daemon socket. If a CLI daemon already owns it, politely ask it
 /// to quit and take over — one dictation service at a time.
-fn bind_taking_over() -> Result<UnixListener> {
-    let path = flowoss_core::socket_path();
-    if let Ok(mut existing) = UnixStream::connect(&path) {
+fn bind_taking_over() -> Result<Listener> {
+    if let Ok(mut existing) = ipc::connect() {
         let _ = writeln!(existing, "quit");
         for _ in 0..10 {
             std::thread::sleep(Duration::from_millis(200));
-            if UnixStream::connect(&path).is_err() {
+            if ipc::connect().is_err() {
                 break;
             }
         }
-        if UnixStream::connect(&path).is_ok() {
-            bail!("another dictation daemon refuses to release {}", path.display());
+        if ipc::connect().is_ok() {
+            bail!(
+                "another dictation daemon refuses to release {}",
+                ipc::socket_display()
+            );
         }
     }
-    let _ = std::fs::remove_file(&path);
-    UnixListener::bind(&path).with_context(|| format!("failed to bind {}", path.display()))
+    ipc::bind().with_context(|| format!("failed to bind {}", ipc::socket_display()))
 }
 
-fn listen(listener: UnixListener, engine: Sender<Command>) {
+fn listen(listener: Listener, engine: Sender<Command>) {
     for stream in listener.incoming() {
-        let Ok(mut stream) = stream else { continue };
+        let Ok(stream) = stream else { continue };
+        let mut reader = BufReader::new(stream);
         let mut line = String::new();
-        if BufReader::new(&stream).read_line(&mut line).is_err() {
+        if reader.read_line(&mut line).is_err() {
             continue;
         }
+        let mut stream = reader.into_inner();
         let (reply_tx, reply_rx) = channel();
         let command = match line.trim() {
             "toggle" => Command::Toggle(Some(reply_tx)),

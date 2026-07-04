@@ -9,14 +9,15 @@
 //! commands are serialized through the socket accept loop.
 
 use std::io::{BufRead, BufReader, Write};
-use std::os::unix::net::{UnixListener, UnixStream};
 use std::time::Instant;
 
 use anyhow::{bail, Context, Result};
+use flowoss_core::ipc;
+use interprocess::local_socket::prelude::*;
 use flowoss_insertion::{notify, InsertOutcome, Inserter, PasteMode};
 use flowoss_text_cleanup::CleanupMode;
 
-pub use flowoss_core::{last_transcript_path, socket_path};
+pub use flowoss_core::last_transcript_path;
 
 pub struct DaemonOptions {
     pub device: Option<String>,
@@ -38,13 +39,14 @@ pub fn run(
     vad: flowoss_vad::SpeechDetector,
     options: DaemonOptions,
 ) -> Result<()> {
-    let path = socket_path();
-    if UnixStream::connect(&path).is_ok() {
-        bail!("another flowoss daemon is already running on {}", path.display());
+    if ipc::is_running() {
+        bail!(
+            "another flowoss daemon is already running on {}",
+            ipc::socket_display()
+        );
     }
-    let _ = std::fs::remove_file(&path); // stale socket from a crashed run
     let listener =
-        UnixListener::bind(&path).with_context(|| format!("failed to bind {}", path.display()))?;
+        ipc::bind().with_context(|| format!("failed to bind {}", ipc::socket_display()))?;
 
     let mut daemon = Daemon {
         stt,
@@ -55,21 +57,23 @@ pub fn run(
         last_transcript: std::fs::read_to_string(last_transcript_path()).unwrap_or_default(),
     };
 
-    eprintln!("flowoss daemon ready on {}", path.display());
+    eprintln!("flowoss daemon ready on {}", ipc::socket_display());
     eprintln!("Bind a keyboard shortcut to: flowoss trigger");
 
     for stream in listener.incoming() {
-        let mut stream = match stream {
+        let stream = match stream {
             Ok(s) => s,
             Err(e) => {
                 eprintln!("socket accept error: {e}");
                 continue;
             }
         };
+        let mut reader = BufReader::new(stream);
         let mut line = String::new();
-        if BufReader::new(&stream).read_line(&mut line).is_err() {
+        if reader.read_line(&mut line).is_err() {
             continue;
         }
+        let mut stream = reader.into_inner();
         let command = line.trim();
         let reply = match command {
             "toggle" => daemon.toggle(),
@@ -92,7 +96,6 @@ pub fn run(
         });
         let _ = writeln!(stream, "{reply}");
     }
-    let _ = std::fs::remove_file(&path);
     Ok(())
 }
 
@@ -176,15 +179,15 @@ impl Daemon {
 
 /// Send a command to the running daemon and return its reply.
 pub fn send_command(command: &str) -> Result<String> {
-    let path = socket_path();
-    let mut stream = UnixStream::connect(&path).with_context(|| {
+    let stream = ipc::connect().with_context(|| {
         format!(
             "cannot reach flowoss daemon at {} — start it with `flowoss daemon`",
-            path.display()
+            ipc::socket_display()
         )
     })?;
-    writeln!(stream, "{command}")?;
+    let mut reader = BufReader::new(stream);
+    writeln!(reader.get_mut(), "{command}")?;
     let mut reply = String::new();
-    BufReader::new(&stream).read_line(&mut reply)?;
+    reader.read_line(&mut reply)?;
     Ok(reply.trim_end().to_string())
 }

@@ -17,6 +17,8 @@ serde.workspace = true
 serde_json.workspace = true
 tauri = { workspace = true, features = ["tray-icon", "image-png"] }
 toml.workspace = true
+interprocess = "2"
+ureq = "2"
 flowoss-core.workspace = true
 flowoss-audio.workspace = true
 flowoss-stt.workspace = true
@@ -24,3 +26,9 @@ flowoss-vad.workspace = true
 flowoss-text-cleanup.workspace = true
 flowoss-insertion.workspace = true
 flowoss-assist.workspace = true
+
+# Windows can grab global hotkeys directly (unlike Wayland), so the app
+# registers them itself instead of shelling out to a desktop-environment
+# keybinding that runs `flowoss trigger`.
+[target.'cfg(windows)'.dependencies]
+tauri-plugin-global-shortcut = "2"

@@ -15,7 +15,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["deb", "appimage"],
+    "targets": "all",
     "icon": ["icons/icon.png"],
     "category": "Utility",
     "shortDescription": "Local-first voice dictation",

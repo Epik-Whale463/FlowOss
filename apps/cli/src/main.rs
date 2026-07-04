@@ -11,7 +11,6 @@ use anyhow::{bail, Result};
 use clap::{Parser, Subcommand};
 use flowoss_text_cleanup::CleanupMode;
 
-#[cfg(unix)]
 mod daemon;
 
 #[derive(Parser)]
@@ -50,7 +49,6 @@ enum Command {
         model: ModelArgs,
     },
     /// Run the dictation daemon: keeps the model warm and waits for triggers
-    #[cfg(unix)]
     Daemon {
         /// Input device name; default device if omitted
         #[arg(short, long)]
@@ -65,23 +63,18 @@ enum Command {
         model: ModelArgs,
     },
     /// Toggle recording on the running daemon (bind this to a hotkey)
-    #[cfg(unix)]
     Trigger,
     /// Toggle assist mode on the desktop app: selected text + spoken question
-    #[cfg(unix)]
     Assist,
     /// Cancel an in-progress recording
-    #[cfg(unix)]
     Cancel,
     /// Print the last transcript
-    #[cfg(unix)]
     Last {
         /// Also copy it to the clipboard
         #[arg(long)]
         copy: bool,
     },
     /// Stop the running daemon
-    #[cfg(unix)]
     Quit,
 }
 
@@ -171,7 +164,6 @@ fn main() -> Result<()> {
             }
             println!("{}", flowoss_text_cleanup::clean(&text, cleanup));
         }
-        #[cfg(unix)]
         Command::Daemon {
             device,
             paste_mode,
@@ -190,18 +182,13 @@ fn main() -> Result<()> {
                 },
             )?;
         }
-        #[cfg(unix)]
         Command::Trigger => println!("{}", daemon::send_command("toggle")?),
-        #[cfg(unix)]
         Command::Assist => println!("{}", daemon::send_command("assist")?),
-        #[cfg(unix)]
         Command::Cancel => println!("{}", daemon::send_command("cancel")?),
-        #[cfg(unix)]
         Command::Last { copy } => {
             let command = if copy { "copy-last" } else { "last" };
             println!("{}", daemon::send_command(command)?);
         }
-        #[cfg(unix)]
         Command::Quit => println!("{}", daemon::send_command("quit")?),
     }
     Ok(())

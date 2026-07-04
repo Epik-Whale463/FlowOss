@@ -187,16 +187,6 @@
     </div>
     <div class="row">
       <div class="info">
-        <div class="label">Live preview</div>
-        <div class="desc">Show your words in the overlay while you speak</div>
-      </div>
-      <div class="seg" id="livePreview">
-        <label><input type="radio" name="live" value="on"><span>On</span></label>
-        <label><input type="radio" name="live" value="off"><span>Off</span></label>
-      </div>
-    </div>
-    <div class="row">
-      <div class="info">
         <div class="label">Cleanup</div>
         <div class="desc">Basic fixes spacing and punctuation gaps</div>
       </div>
@@ -342,9 +332,6 @@
       (document.querySelector(`#pasteMode input[value="${settings.paste_mode}"]`).checked = true);
     const cl = document.querySelector(`#cleanup input[value="${settings.cleanup}"]`);
     if (cl) cl.checked = true;
-    const lp = document.querySelector(
-      `#livePreview input[value="${settings.live_preview ? "on" : "off"}"]`);
-    if (lp) lp.checked = true;
     const ws = document.querySelector(
       `#webSearch input[value="${settings.assist_web_search === false ? "off" : "on"}"]`);
     if (ws) ws.checked = true;
@@ -367,10 +354,6 @@
   });
   $("cleanup").addEventListener("change", (e) => {
     settings.cleanup = e.target.value;
-    save();
-  });
-  $("livePreview").addEventListener("change", (e) => {
-    settings.live_preview = e.target.value === "on";
     save();
   });
   $("applyHotkey").addEventListener("click", async () => {

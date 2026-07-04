@@ -7,7 +7,9 @@ It is built in Rust around `sherpa-onnx`, NVIDIA Parakeet speech models, Silero 
 
 ## MVP Status
 
-The current MVP is Linux-first and working on Ubuntu GNOME Wayland.
+The current MVP runs on Linux (Ubuntu GNOME Wayland) and Windows 10/11.
+On Windows the app registers its global hotkeys directly and auto-downloads
+the speech models on first run; see [Windows Quick Start](#windows-quick-start).
 
 Available today:
 
@@ -88,6 +90,40 @@ cargo build --release
 # Live dictation to stdout
 ./target/release/flowoss listen
 ```
+
+## Windows Quick Start
+
+Prerequisites:
+
+- Rust MSVC toolchain via `rustup` (default `x86_64-pc-windows-msvc`)
+- Visual Studio Build Tools with the "Desktop development with C++" workload
+  (provides the linker and Windows SDK)
+- LLVM/`libclang` for the `sherpa-rs` bindgen step:
+  `winget install LLVM.LLVM`, then set `LIBCLANG_PATH` to `C:\Program Files\LLVM\bin`
+- Microsoft Edge WebView2 Runtime (already present on nearly all Windows 10/11)
+
+Build and run:
+
+```powershell
+$env:LIBCLANG_PATH = "C:\Program Files\LLVM\bin"
+cargo build --release
+./target/release/flowoss-desktop.exe
+```
+
+On first launch the app downloads the speech models (~800MB) into
+`%APPDATA%\flowoss\models`, showing progress in the overlay. To pre-fetch them
+instead, run `./scripts/download-models.ps1`.
+
+Default global hotkeys (rebindable in Settings):
+
+- `Ctrl+Shift+Space` — start/stop dictation
+- `Ctrl+Shift+A` — assist
+
+### Building a portable package
+
+`./scripts/package-windows.ps1` produces `dist/FlowOSS-windows-x64.zip` — the
+app, the CLI, the native DLLs, and a README. Recipients unzip and run
+`flowoss-desktop.exe`; models download on their first launch.
 
 ## Dictation Daemon Flow
 

@@ -4,12 +4,11 @@
 <meta charset="utf-8">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { background: transparent; overflow: hidden; height: 100%; }
+  html, body { background: transparent !important; overflow: hidden; width: 100%; height: 100%; }
   body {
     font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
     font-feature-settings: "cv05", "ss01";
-    display: flex; align-items: flex-end; justify-content: center;
-    padding-bottom: 4px;
+    display: flex; align-items: stretch; justify-content: stretch;
     -webkit-user-select: none; user-select: none; cursor: default;
   }
 
@@ -24,19 +23,18 @@
     --orb-y: calc(1 - var(--level) * 0.18);
     position: relative;
     display: flex; align-items: center; gap: 10px;
+    width: 100%; height: 100%;
     background:
       linear-gradient(160deg, rgba(44,46,60,0.66), rgba(9,9,15,0.92) 70%),
       rgba(13,13,20,0.9);
-    backdrop-filter: blur(28px) saturate(1.6);
-    -webkit-backdrop-filter: blur(28px) saturate(1.6);
+    /* Avoid backdrop-filter here: WebView2 can composite it as a visible
+       rectangular surface around the otherwise rounded transparent overlay. */
     color: #f4f5fb;
     border-radius: 999px;
     padding: 9px 16px;
-    min-width: 132px; max-width: 380px;
+    min-width: 0; max-width: none;
     justify-content: center;
     box-shadow:
-      0 18px 46px rgba(0,0,0,0.58),
-      0 0 calc(14px + var(--level) * 30px) rgba(168,182,228, var(--lum)),
       0 0 0 1px rgba(0,0,0,0.32),
       inset 0 1px 0 rgba(255,255,255,0.22),
       inset 0 -1px 0 rgba(255,255,255,0.06),
@@ -93,8 +91,32 @@
     100% { box-shadow: 0 18px 46px rgba(0,0,0,0.58), 0 0 0 rgba(226,232,255,0), 0 0 0 1px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.22), inset 0 -1px 0 rgba(255,255,255,0.06); }
   }
   #pill.hidden { opacity: 0; }
+  #pill.success-shimmer {
+    background:
+      linear-gradient(115deg, transparent 0%, rgba(163,255,196,.36) 42%, transparent 62%),
+      linear-gradient(160deg, rgba(28,64,42,0.82), rgba(8,14,11,0.95) 72%),
+      rgba(9,18,13,0.92);
+    background-size: 230% 100%, 100% 100%, 100% 100%;
+    animation: greenResolve 1200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    border-color: rgba(148,255,184,.34);
+    box-shadow:
+      0 0 0 1px rgba(20,80,42,.34),
+      inset 0 1px 0 rgba(214,255,225,.32),
+      inset 0 -1px 0 rgba(136,255,177,.12),
+      inset 0 0 20px rgba(116,255,165,.16);
+  }
+  #pill.success-shimmer #bars span {
+    background: linear-gradient(180deg, #dcffe6, #70f59d);
+    box-shadow: 0 0 8px rgba(100,255,150,.7);
+  }
+  #pill.success-shimmer #timer { color: #c9f9d6; }
+  @keyframes greenResolve {
+    0% { opacity: 1; background-position: 150% 0, 0 0, 0 0; transform: scale(1); }
+    42% { opacity: 1; background-position: 38% 0, 0 0, 0 0; transform: scale(1.015); }
+    100% { opacity: 0; background-position: -70% 0, 0 0, 0 0; transform: scale(.985); }
+  }
   #pill.answer {
-    width: 610px; max-width: 610px; min-height: 300px;
+    width: 100%; max-width: none; min-height: 0;
     align-items: stretch; justify-content: flex-start;
     border-radius: 24px; padding: 18px 20px;
     animation: unfoldUp 380ms cubic-bezier(0.16, 1, 0.3, 1);
@@ -105,16 +127,6 @@
     to   { transform: translateY(0) scale(1); opacity: 1; filter: blur(0); }
   }
 
-  /* the only hot color in the system: a live coral ember while recording */
-  .dot {
-    width: 10px; height: 10px; border-radius: 50%;
-    background: radial-gradient(circle at 35% 30%, #ffe0d6, #ff6b5e 48%, #cf3a30);
-    flex: none;
-    box-shadow: 0 0 calc(10px + var(--level) * 14px) rgba(255,107,94,calc(.5 + var(--level) * .35));
-    transform: scaleX(var(--orb-x)) scaleY(var(--orb-y));
-    transition: transform 90ms ease-out, box-shadow 90ms ease-out;
-  }
-
   #bars { display: flex; align-items: center; gap: 2.5px; height: 18px; flex: none; }
   #bars span {
     width: 3px; border-radius: 2px;
@@ -122,24 +134,6 @@
     box-shadow: 0 0 6px rgba(196,206,244, calc(var(--level) * 0.7));
     height: 3px; transition: height 90ms ease-out;
   }
-
-  /* live word stream: right-anchored, newest word slides in */
-  #words {
-    display: flex; justify-content: flex-end; align-items: baseline;
-    overflow: hidden; white-space: nowrap;
-    max-width: 250px; font-size: 13px; line-height: 1.3;
-    mask-image: linear-gradient(90deg, transparent, black 28px);
-    -webkit-mask-image: linear-gradient(90deg, transparent, black 28px);
-  }
-  #words .w { margin-left: 4px; transform-origin: 50% 100%; }
-  #words .w.new { animation: wordMagnet 330ms cubic-bezier(0.14, 1.38, 0.32, 1); }
-  @keyframes wordMagnet {
-    0%   { opacity: 0; transform: translateY(9px) translateX(8px) scale(.86); filter: blur(2px); }
-    58%  { opacity: 1; transform: translateY(-2px) translateX(-1.5px) scale(1.04); filter: blur(0); }
-    78%  { transform: translateY(1px) translateX(.8px) scale(.99); }
-    100% { opacity: 1; transform: translateY(0) translateX(0) scale(1); filter: blur(0); }
-  }
-  #words .placeholder { color: #a2a6ba; font-size: 12.5px; }
 
   #timer { font-size: 11.5px; font-variant-numeric: tabular-nums; color: #b8bccd; flex: none; }
 
@@ -171,7 +165,7 @@
     color: #d4d6e2; font-size: 11.5px; line-height: 1.35;
     padding: 8px 10px; border-radius: 12px;
     background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.11);
-    max-height: 48px; overflow: hidden;
+    max-height: 66px; overflow: hidden;
   }
   .answer-text {
     color: #f6f7fc; font-size: 14px; line-height: 1.48;
@@ -221,7 +215,7 @@
   @media (prefers-reduced-motion: reduce) {
     #pill, #pill::before, #pill::after,
     #pill.focus::after, #pill.success-pulse,
-    #words .w.new, .answer-card { animation: none !important; }
+    #pill.success-shimmer, .answer-card { animation: none !important; }
   }
 </style>
 </head>
@@ -232,13 +226,13 @@
   const invoke = (cmd, args) => window.__TAURI__.core.invoke(cmd, args);
   const BAR_COUNT = 5;
   const BAR_GAIN = [0.6, 0.9, 1.2, 0.9, 0.6];
-  let wordCount = 0;
   let lastState = "";
+  let lastRecordingTimer = "0:00";
 
   function setMode(mode) {
     if (pill.dataset.mode === mode) return false;
     pill.dataset.mode = mode;
-    pill.classList.remove("focus", "success-pulse");
+    pill.classList.remove("focus", "success-pulse", "success-shimmer");
     void pill.offsetWidth;
     pill.classList.add("focus");
     return true;
@@ -256,52 +250,20 @@
     pill.classList.add("success-pulse");
   }
 
-  function renderWords(partial) {
-    const box = pill.querySelector("#words");
-    if (!box) return;
-    const words = partial.trim().split(/\s+/).filter(Boolean);
-    if (words.length === 0) {
-      if (!box.querySelector(".placeholder")) {
-        box.innerHTML = '<span class="placeholder">Listening…</span>';
-        wordCount = 0;
-      }
-      return;
-    }
-    if (box.querySelector(".placeholder")) { box.innerHTML = ""; wordCount = 0; }
-    // Streaming models only append; re-render is cheap, but animate only
-    // genuinely new words so the stream feels alive, not flickery.
-    if (words.length < wordCount) { box.innerHTML = ""; wordCount = 0; }
-    const existing = box.children.length;
-    for (let i = existing; i < words.length; i++) {
-      const span = document.createElement("span");
-      span.className = "w new";
-      span.textContent = words[i];
-      box.appendChild(span);
-    }
-    // Correct earlier words if the decoder revised them (no animation).
-    for (let i = 0; i < Math.min(existing, words.length); i++) {
-      if (box.children[i].textContent !== words[i]) {
-        box.children[i].textContent = words[i];
-      }
-    }
-    wordCount = words.length;
-  }
-
   function render(s) {
     pill.classList.remove("hidden");
     pill.classList.remove("answer");
     if (s.state !== lastState) {
-      pill.classList.remove("focus", "success-pulse");
+      pill.classList.remove("focus", "success-pulse", "success-shimmer");
     }
     switch (s.state) {
       case "recording": {
         if (setMode("rec")) {
-          pill.style.minWidth = "300px";
+          pill.style.minWidth = "0";
           pill.innerHTML =
-            '<div class="dot"></div><div id="bars">' +
+            '<div id="bars">' +
             "<span></span>".repeat(BAR_COUNT) +
-            '</div><div id="words"></div><div id="timer">0:00</div>';
-          wordCount = 0;
+            '</div><div id="timer">0:00</div>';
         }
         const bars = pill.querySelectorAll("#bars span");
         const boosted = setLevel(s.level || 0);
@@ -310,19 +272,17 @@
           bar.style.height = Math.min(18, 3 + boosted * BAR_GAIN[i] * jitter * 15) + "px";
         });
         const secs = Math.floor(s.secs);
-        pill.querySelector("#timer").textContent =
-          Math.floor(secs / 60) + ":" + String(secs % 60).padStart(2, "0");
-        renderWords(s.partial ?? "");
+        lastRecordingTimer = Math.floor(secs / 60) + ":" + String(secs % 60).padStart(2, "0");
+        pill.querySelector("#timer").textContent = lastRecordingTimer;
         break;
       }
       case "assist-recording": {
         if (setMode("assist-rec")) {
-          pill.style.minWidth = "330px";
+          pill.style.minWidth = "0";
           pill.innerHTML =
             '<div class="ai">✦</div><div id="bars">' +
             "<span></span>".repeat(BAR_COUNT) +
-            '</div><div id="words"></div><div id="timer">0:00</div>';
-          wordCount = 0;
+            '</div><div id="timer">0:00</div>';
         }
         const bars = pill.querySelectorAll("#bars span");
         const boosted = setLevel(s.level || 0);
@@ -331,9 +291,8 @@
           bar.style.height = Math.min(18, 3 + boosted * BAR_GAIN[i] * jitter * 15) + "px";
         });
         const secs = Math.floor(s.secs);
-        pill.querySelector("#timer").textContent =
-          Math.floor(secs / 60) + ":" + String(secs % 60).padStart(2, "0");
-        renderWords(s.partial || "Ask about the selected text");
+        lastRecordingTimer = Math.floor(secs / 60) + ":" + String(secs % 60).padStart(2, "0");
+        pill.querySelector("#timer").textContent = lastRecordingTimer;
         break;
       }
       case "processing":
@@ -398,20 +357,24 @@
         break;
       }
       case "success":
-        setMode("done");
+        setMode("success");
         setLevel(0.1);
-        pill.style.minWidth = "132px";
+        pill.style.minWidth = "0";
         pill.innerHTML =
-          '<div id="label"><span class="ok">✓</span> ' +
-          (s.pasted ? "Pasted" : "Copied — press Ctrl+V") +
-          "</div>";
-        confidencePulse();
+          '<div id="bars">' +
+          "<span></span>".repeat(BAR_COUNT) +
+          '</div><div id="timer"></div>';
+        pill.querySelector("#timer").textContent = lastRecordingTimer;
+        pill.querySelectorAll("#bars span").forEach((bar, i) => {
+          bar.style.height = [8, 14, 18, 14, 8][i] + "px";
+        });
+        pill.classList.add("success-shimmer");
         break;
       case "no-speech":
         setMode("done");
         setLevel(0);
-        pill.style.minWidth = "132px";
-        pill.innerHTML = '<div id="label" class="muted">No speech detected</div>';
+        pill.style.minWidth = "0";
+        pill.innerHTML = '<div id="label" class="muted">No speech</div>';
         break;
       case "error":
         setMode("done");
@@ -423,6 +386,15 @@
         setMode("load");
         setLevel(0.1);
         pill.innerHTML = '<div class="spinner"></div><div id="label" class="muted">Loading model…</div>';
+        break;
+      case "downloading":
+        setMode("download");
+        setLevel(0.14);
+        pill.style.minWidth = "300px";
+        pill.innerHTML =
+          '<div class="spinner"></div><div id="label" class="muted"></div>';
+        pill.querySelector("#label").textContent =
+          (s.message || "Downloading…") + (s.pct ? "  " + s.pct + "%" : "");
         break;
       default:
         pill.dataset.mode = "";
