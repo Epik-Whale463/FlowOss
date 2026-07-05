@@ -238,8 +238,12 @@ fn build_windows(app: &AppHandle) -> tauri::Result<()> {
     // the first show — calling it on an unrealized GTK window panics in tao.
     let overlay = WebviewWindowBuilder::new(app, "overlay", WebviewUrl::App("overlay.html".into()))
         .title("FlowOSS")
-        .inner_size(144.0, 44.0)
-        .resizable(false)
+        .inner_size(26.0, 26.0)
+        // GTK ignores programmatic resize() on non-resizable windows and
+        // snaps the overlay to its ~200x200 natural size, so the window must
+        // stay resizable on Linux; the min==max size hints the engine pins on
+        // every resize keep it fixed for the user.
+        .resizable(cfg!(target_os = "linux"))
         .decorations(false)
         .transparent(true)
         .background_color(Color(0, 0, 0, 0))

@@ -74,12 +74,17 @@ const ANSWER_LINGER: Duration = Duration::from_secs(30);
 const HOVER_LINGER: Duration = Duration::from_secs(8);
 /// Keep speech models in memory briefly after use so repeated dictation is fast.
 const MODEL_KEEP_WARM: Duration = Duration::from_secs(10 * 60);
-const PILL_SIZE: (u32, u32) = (144, 44);
+/// The orb: a small circular vessel of liquid light. Wordless — errors and
+/// download progress are told by color/fill, details go via notifications.
+const PILL_SIZE: (u32, u32) = (26, 26);
+/// Compact card while the assistant thinks; grows to ANSWER_SIZE on reply.
+const THINKING_SIZE: (u32, u32) = (560, 116);
 const ANSWER_SIZE: (u32, u32) = (640, 380);
 
-/// Place the overlay just above the bottom edge, horizontally centered on
-/// the monitor the cursor's window is on (or the primary one).
-fn position_bottom_center(window: &tauri::WebviewWindow, size: (u32, u32)) {
+/// Place the overlay just below the top edge, horizontally centered on
+/// the monitor the cursor's window is on (or the primary one) — a notch
+/// light, out of the way of what the user is typing.
+fn position_top_center(window: &tauri::WebviewWindow, size: (u32, u32)) {
     let monitor = window
         .current_monitor()
         .ok()
@@ -88,9 +93,9 @@ fn position_bottom_center(window: &tauri::WebviewWindow, size: (u32, u32)) {
     let Some(monitor) = monitor else {
         return;
     };
-    let margin = (56.0 * monitor.scale_factor()) as i32;
+    let margin = (14.0 * monitor.scale_factor()) as i32;
     let x = monitor.position().x + (monitor.size().width as i32 - size.0 as i32) / 2;
-    let y = monitor.position().y + monitor.size().height as i32 - size.1 as i32 - margin;
+    let y = monitor.position().y + margin;
     let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
 }
 
@@ -163,6 +168,7 @@ impl Engine {
         self.overlay_visible_sized(visible, PILL_SIZE, false);
     }
 
+
     fn overlay_answer_visible(&mut self, interactive: bool) {
         self.overlay_visible_sized(true, ANSWER_SIZE, interactive);
     }
@@ -171,8 +177,16 @@ impl Engine {
         match self.app.get_webview_window("overlay") {
             Some(window) => {
                 if visible {
-                    let _ = window.set_size(tauri::PhysicalSize::new(size.0, size.1));
-                    position_bottom_center(&window, size);
+                    // GTK ignores resize() on non-resizable windows, so the
+                    // overlay snaps back to its natural ~200x200 size (a
+                    // square pill renders as a circle). Min/max geometry
+                    // hints are enforced even for non-resizable windows, so
+                    // pin them to the target size on every resize.
+                    let physical = tauri::PhysicalSize::new(size.0, size.1);
+                    let _ = window.set_min_size(Some(physical));
+                    let _ = window.set_max_size(Some(physical));
+                    let _ = window.set_size(physical);
+                    position_top_center(&window, size);
                 }
                 let result = if visible { window.show() } else { window.hide() };
                 if let Err(e) = result {
@@ -548,7 +562,7 @@ impl Engine {
             return;
         }
         let query = flowoss_text_cleanup::clean(&query, self.settings.cleanup_mode());
-        self.overlay_answer_visible(false);
+        self.overlay_visible_sized(true, THINKING_SIZE, false);
         self.hide_at = None;
         self.emit(StateEvent::AssistProcessing {
             query: query.clone(),

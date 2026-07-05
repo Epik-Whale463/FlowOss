@@ -6,421 +6,594 @@
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { background: transparent !important; overflow: hidden; width: 100%; height: 100%; }
   body {
-    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-    font-feature-settings: "cv05", "ss01";
-    display: flex; align-items: stretch; justify-content: stretch;
+    font-family: system-ui, -apple-system, "Segoe UI Variable", "Segoe UI", sans-serif;
     -webkit-user-select: none; user-select: none; cursor: default;
   }
 
-  /* ---- moonlight glass pill ----
-     One idea carried everywhere: the pill is a shard of dark glass and your
-     voice is light trapped inside it. Level drives luminance, never color. */
+  /* ---- the vessel ----
+     A small orb of dark glass holding liquid light. No words, no numbers:
+     every state is the same liquid in a different mood — sloshing with the
+     voice, bubbling while it works, filling and blooming when done,
+     draining when nothing was said, flaring amber on error. One canvas
+     simulation renders every orb, including the small one in the assist
+     card; the glass is CSS. */
   #pill {
-    --level: 0;
-    --lum: calc(0.10 + var(--level) * 0.38);           /* outer halo */
-    --core: calc(var(--level) * 0.16);                  /* inner light */
-    --orb-x: calc(1 + var(--level) * 0.52);
-    --orb-y: calc(1 - var(--level) * 0.18);
     position: relative;
-    display: flex; align-items: center; gap: 10px;
     width: 100%; height: 100%;
+    border-radius: 50%;
     background:
-      linear-gradient(160deg, rgba(44,46,60,0.66), rgba(9,9,15,0.92) 70%),
-      rgba(13,13,20,0.9);
-    /* Avoid backdrop-filter here: WebView2 can composite it as a visible
-       rectangular surface around the otherwise rounded transparent overlay. */
-    color: #f4f5fb;
-    border-radius: 999px;
-    padding: 9px 16px;
-    min-width: 0; max-width: none;
-    justify-content: center;
+      radial-gradient(circle at 34% 22%, rgba(46,48,66,0.4), rgba(5,5,9,0.96) 58%),
+      rgba(7,7,12,0.95);
+    /* No backdrop-filter: WebView2 composites it as a visible rectangle
+       around the transparent window. */
+    border: 1px solid rgba(255,255,255,0.18);
     box-shadow:
-      0 0 0 1px rgba(0,0,0,0.32),
-      inset 0 1px 0 rgba(255,255,255,0.22),
-      inset 0 -1px 0 rgba(255,255,255,0.06),
-      inset 0 0 calc(8px + var(--level) * 22px) rgba(184,196,240, var(--core));
-    border: 1px solid rgba(255,255,255,0.20);
+      0 0 0 1px rgba(0,0,0,0.35),
+      inset 0 1px 1px rgba(255,255,255,0.22),
+      inset 0 -2px 6px rgba(0,0,0,0.5);
+    color: #f4f5fb;
     overflow: hidden;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.48);
-    transform-origin: 50% 100%;
-    animation: riseIn 320ms cubic-bezier(0.16, 1, 0.3, 1);
-    transition:
-      opacity 180ms ease,
-      min-width 320ms cubic-bezier(0.16, 1, 0.3, 1),
-      width 360ms cubic-bezier(0.16, 1, 0.3, 1),
-      min-height 360ms cubic-bezier(0.16, 1, 0.3, 1),
-      border-radius 360ms cubic-bezier(0.16, 1, 0.3, 1),
-      padding 360ms cubic-bezier(0.16, 1, 0.3, 1),
-      box-shadow 95ms ease-out;
-  }
-  /* slow specular drift — the glass feels lit from above */
-  #pill::before {
-    content: ""; position: absolute; inset: 0; border-radius: inherit;
-    background: linear-gradient(115deg,
-      transparent 20%, rgba(255,255,255,0.14) 38%,
-      rgba(255,255,255,0.05) 48%, transparent 60%);
-    background-size: 260% 100%;
-    animation: sheen 6.5s ease-in-out infinite;
-    pointer-events: none;
-  }
-  #pill::after {
-    content: ""; position: absolute; inset: 0; border-radius: inherit;
-    background: linear-gradient(100deg,
-      transparent 0%, transparent 34%, rgba(255,255,255,.32) 46%,
-      rgba(255,255,255,.08) 52%, transparent 66%, transparent 100%);
-    transform: translateX(-130%);
-    pointer-events: none; opacity: 0;
-  }
-  #pill.focus::after { animation: focusLine 520ms cubic-bezier(0.2, 0.8, 0.2, 1); }
-  #pill.success-pulse { animation: confidencePulse 620ms cubic-bezier(0.16, 1, 0.3, 1); }
-  @keyframes sheen { 0%,100% { background-position: 130% 0; } 50% { background-position: -30% 0; } }
-  @keyframes riseIn {
-    from { transform: translateY(18px) scale(.96); opacity: 0; filter: blur(4px); }
-    70%  { transform: translateY(-1px) scale(1.006); opacity: 1; filter: blur(0); }
-    to   { transform: translateY(0) scale(1); opacity: 1; filter: blur(0); }
-  }
-  @keyframes focusLine {
-    0% { opacity: 0; transform: translateX(-130%) skewX(-16deg); }
-    18% { opacity: .9; }
-    100% { opacity: 0; transform: translateX(130%) skewX(-16deg); }
-  }
-  /* success: the trapped light escapes as a cool white ring, then settles */
-  @keyframes confidencePulse {
-    0% { box-shadow: 0 18px 46px rgba(0,0,0,0.58), 0 0 0 rgba(226,232,255,0), 0 0 0 1px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.22), inset 0 -1px 0 rgba(255,255,255,0.06); }
-    38% { box-shadow: 0 20px 52px rgba(0,0,0,0.6), 0 0 38px rgba(226,232,255,.5), 0 0 0 1px rgba(226,232,255,.65), inset 0 1px 0 rgba(255,255,255,0.3), inset 0 -1px 0 rgba(226,232,255,.14); }
-    100% { box-shadow: 0 18px 46px rgba(0,0,0,0.58), 0 0 0 rgba(226,232,255,0), 0 0 0 1px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.22), inset 0 -1px 0 rgba(255,255,255,0.06); }
+    transform-origin: 50% 0%;
+    transition: opacity 160ms ease, border-color 480ms ease;
   }
   #pill.hidden { opacity: 0; }
-  #pill.success-shimmer {
-    background:
-      linear-gradient(115deg, transparent 0%, rgba(163,255,196,.36) 42%, transparent 62%),
-      linear-gradient(160deg, rgba(28,64,42,0.82), rgba(8,14,11,0.95) 72%),
-      rgba(9,18,13,0.92);
-    background-size: 230% 100%, 100% 100%, 100% 100%;
-    animation: greenResolve 1200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    border-color: rgba(148,255,184,.34);
-    box-shadow:
-      0 0 0 1px rgba(20,80,42,.34),
-      inset 0 1px 0 rgba(214,255,225,.32),
-      inset 0 -1px 0 rgba(136,255,177,.12),
-      inset 0 0 20px rgba(116,255,165,.16);
+
+  /* A crescent of light on the glass, top-left — the room's reflection. */
+  #pill::before {
+    content: ""; position: absolute; inset: 0; border-radius: inherit;
+    background: radial-gradient(ellipse 34% 20% at 33% 16%,
+      rgba(255,255,255,0.30), rgba(255,255,255,0.04) 60%, transparent 68%);
+    pointer-events: none; z-index: 2;
   }
-  #pill.success-shimmer #bars span {
-    background: linear-gradient(180deg, #dcffe6, #70f59d);
-    box-shadow: 0 0 8px rgba(100,255,150,.7);
-  }
-  #pill.success-shimmer #timer { color: #c9f9d6; }
-  @keyframes greenResolve {
-    0% { opacity: 1; background-position: 150% 0, 0 0, 0 0; transform: scale(1); }
-    42% { opacity: 1; background-position: 38% 0, 0 0, 0 0; transform: scale(1.015); }
-    100% { opacity: 0; background-position: -70% 0, 0 0, 0 0; transform: scale(.985); }
-  }
-  #pill.answer {
-    width: 100%; max-width: none; min-height: 0;
-    align-items: stretch; justify-content: flex-start;
-    border-radius: 24px; padding: 18px 20px;
-    animation: unfoldUp 380ms cubic-bezier(0.16, 1, 0.3, 1);
-  }
-  @keyframes unfoldUp {
-    from { transform: translateY(14px) scaleX(.72) scaleY(.35); opacity: .4; filter: blur(3px); }
-    72%  { transform: translateY(-1px) scaleX(1.01) scaleY(1.01); opacity: 1; filter: blur(0); }
+
+  /* Entrance: a droplet condensing out of the top edge — slips down,
+     overshoots, snaps into focus. Replayed only when the orb (re)appears. */
+  #pill.enter { animation: condense 420ms cubic-bezier(0.2, 1.35, 0.32, 1); }
+  @keyframes condense {
+    from { transform: translateY(-14px) scale(0.35); opacity: 0; filter: blur(6px); }
+    62%  { transform: translateY(2px) scale(1.06); opacity: 1; filter: blur(0); }
     to   { transform: translateY(0) scale(1); opacity: 1; filter: blur(0); }
   }
 
-  #bars { display: flex; align-items: center; gap: 2.5px; height: 18px; flex: none; }
-  #bars span {
-    width: 3px; border-radius: 2px;
-    background: linear-gradient(180deg, #ffffff, #a9b2d4);
-    box-shadow: 0 0 6px rgba(196,206,244, calc(var(--level) * 0.7));
-    height: 3px; transition: height 90ms ease-out;
+  /* Mood lives on the glass rim. */
+  #pill.err {
+    border-color: rgba(255,70,105,0.55);
+    animation: settle 360ms ease-out;
+  }
+  @keyframes settle {
+    0% { transform: translateX(0); } 26% { transform: translateX(-2.5px) rotate(-1.5deg); }
+    56% { transform: translateX(2px) rotate(1deg); } 100% { transform: none; }
+  }
+  /* Success: the vessel brims, glows mint, then exhales and sinks away —
+     finished before the engine hides the window at 1.6 s. */
+  #pill.ok {
+    border-color: rgba(255,255,255,0.55);
+    animation: exhale 380ms cubic-bezier(0.5, 0, 0.75, 1) 1080ms forwards;
+  }
+  @keyframes exhale {
+    to { transform: translateY(-8px) scale(0.6); opacity: 0; filter: blur(4px); }
   }
 
-  #timer { font-size: 11.5px; font-variant-numeric: tabular-nums; color: #b8bccd; flex: none; }
+  #wave { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; }
+  #card { display: none; flex-direction: column; gap: 12px; width: 100%; height: 100%; min-height: 0; }
+  #card.center { justify-content: center; }
 
-  .spinner {
-    width: 13px; height: 13px; flex: none;
-    border: 2px solid rgba(255,255,255,0.16); border-top-color: #eef0fa;
-    border-radius: 50%; animation: spin 700ms linear infinite;
+  /* ---- the assist card: the same glass, unfolded into a sheet.
+     No labels — a small orb of the same liquid says what's happening:
+     violet and bubbling while it thinks, brimming mint when the answer
+     lands. Only functional text remains. ---- */
+  #pill.panel {
+    border-radius: 22px;
+    padding: 16px 18px;
+    background:
+      linear-gradient(160deg, rgba(46,48,63,0.60), rgba(9,9,15,0.93) 72%),
+      rgba(12,12,19,0.92);
+    display: flex; align-items: stretch;
+    animation: unfold 420ms cubic-bezier(0.18, 1.15, 0.3, 1);
   }
-  @keyframes spin { to { transform: rotate(360deg); } }
+  #pill.panel::before { display: none; }
+  #pill.panel #wave { display: none; }
+  #pill.panel #card { display: flex; }
+  @keyframes unfold {
+    from { transform: translateY(-14px) scaleX(0.7) scaleY(0.3); opacity: 0.3; filter: blur(4px); }
+    68%  { transform: translateY(1px) scaleX(1.006) scaleY(1.006); opacity: 1; filter: blur(0); }
+    to   { transform: none; opacity: 1; filter: blur(0); }
+  }
+  .stag { animation: rise 380ms cubic-bezier(0.2, 0.9, 0.25, 1) both; }
+  @keyframes rise { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: none; } }
 
-  #label {
-    font-size: 12.5px; white-space: nowrap; overflow: hidden;
-    text-overflow: ellipsis; max-width: 230px;
+  .row { display: flex; align-items: center; gap: 11px; min-width: 0; }
+  .col { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+  /* a smaller vessel of the same glass, living inside the card */
+  canvas.orb {
+    width: 38px; height: 38px; flex: none; border-radius: 50%;
+    background:
+      radial-gradient(circle at 34% 22%, rgba(46,48,66,0.4), rgba(5,5,9,0.96) 58%),
+      rgba(7,7,12,0.95);
+    border: 1px solid rgba(255,255,255,0.16);
+    box-shadow: inset 0 1px 1px rgba(255,255,255,0.18), inset 0 -2px 5px rgba(0,0,0,0.5);
   }
-  .ok { color: #e6eaff; text-shadow: 0 0 10px rgba(200,212,255,.6); }
-  .err { color: #ffada4; }
-  .muted { color: #c3c6d6; }
-  .ai {
-    width: 22px; height: 22px; border-radius: 9px; flex: none;
-    display: grid; place-items: center; font-size: 12px; font-weight: 750;
-    background: linear-gradient(135deg, #a4b6ff, #dcc8ff); color: #12121c;
-    box-shadow: 0 0 18px rgba(178,190,255,.3);
+  .query {
+    color: #f4f5fb; font-size: 14px; font-weight: 550;
+    min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .answer-card { display: flex; flex-direction: column; gap: 10px; width: 100%; min-width: 0; min-height: 0; animation: cardResolve 300ms ease-out both; }
-  @keyframes cardResolve { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-  .answer-top { display: flex; align-items: center; gap: 9px; color: #dcdee9; font-size: 12px; }
-  .answer-query { color: #f4f5fb; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .answer-context {
+  .ctx {
     color: #d4d6e2; font-size: 11.5px; line-height: 1.35;
     padding: 8px 10px; border-radius: 12px;
-    background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.11);
-    max-height: 66px; overflow: hidden;
+    background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.10);
+    max-height: 62px; overflow: hidden; flex: none;
   }
-  .answer-text {
-    color: #f6f7fc; font-size: 14px; line-height: 1.48;
-    white-space: pre-wrap; overflow-y: auto; flex: 1; min-height: 0; padding-right: 6px;
-    -webkit-user-select: text; user-select: text; cursor: text;
-  }
-  .answer-text::-webkit-scrollbar { width: 6px; }
-  .answer-text::-webkit-scrollbar-thumb { background: rgba(255,255,255,.22); border-radius: 3px; }
-  .answer-text::-webkit-scrollbar-track { background: transparent; }
-
-  /* live tool activity while the assistant works */
-  .status {
-    font-size: 12.5px; color: #cdd1e2;
-    background: linear-gradient(90deg, #cdd1e2 30%, #ffffff 50%, #cdd1e2 70%);
-    background-size: 200% 100%;
+  .ctx:empty { display: none; }
+  .status { font-size: 13px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .shimmer {
+    background: linear-gradient(90deg, #c7cbdc 32%, #ffffff 50%, #c7cbdc 68%);
+    background-size: 220% 100%;
     -webkit-background-clip: text; background-clip: text;
     -webkit-text-fill-color: transparent;
-    animation: statusShimmer 1.6s linear infinite;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    animation: shimmerSlide 1.7s linear infinite;
   }
-  @keyframes statusShimmer { from { background-position: 130% 0; } to { background-position: -70% 0; } }
+  @keyframes shimmerSlide { from { background-position: 135% 0; } to { background-position: -35% 0; } }
 
-  .answer-foot {
-    display: flex; align-items: center; gap: 6px; min-width: 0;
-    padding-top: 2px;
+  .ans {
+    color: #f7f8fc; font-size: 16px; line-height: 1.55;
+    white-space: pre-wrap; overflow-y: auto; flex: 1; min-height: 0; padding-right: 8px;
+    -webkit-user-select: text; user-select: text; cursor: text;
   }
+  .ans.reveal {
+    -webkit-mask-image: linear-gradient(100deg, #000 46%, transparent 61%);
+    mask-image: linear-gradient(100deg, #000 46%, transparent 61%);
+    -webkit-mask-size: 260% 100%; mask-size: 260% 100%;
+    animation: wipe 640ms cubic-bezier(0.3, 0, 0.3, 1) forwards;
+  }
+  @keyframes wipe {
+    from { -webkit-mask-position: 132% 0; mask-position: 132% 0; }
+    to   { -webkit-mask-position: 0% 0; mask-position: 0% 0; }
+  }
+  .ans::-webkit-scrollbar { width: 6px; }
+  .ans::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.22); border-radius: 3px; }
+  .ans::-webkit-scrollbar-track { background: transparent; }
+
+  .foot { display: flex; align-items: center; gap: 6px; min-width: 0; padding-top: 2px; }
   .chips { display: flex; gap: 6px; min-width: 0; overflow: hidden; flex: 1; }
   .chip {
     font-size: 11px; color: #cfd4e8; white-space: nowrap; overflow: hidden;
     text-overflow: ellipsis; max-width: 150px; flex: none;
     padding: 4px 10px; border-radius: 999px; cursor: pointer;
-    background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.12);
-    transition: background 120ms ease, border-color 120ms ease;
+    background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.11);
+    transition: background 130ms ease, border-color 130ms ease, transform 130ms ease;
+    animation: pop 340ms cubic-bezier(0.2, 1.1, 0.3, 1) both;
   }
-  .chip:hover { background: rgba(164,182,255,.18); border-color: rgba(164,182,255,.45); }
+  @keyframes pop { from { opacity: 0; transform: scale(0.82) translateY(4px); } to { opacity: 1; transform: none; } }
+  .chip:hover { background: rgba(164,182,255,0.16); border-color: rgba(164,182,255,0.45); transform: translateY(-1px); }
   .btn {
     font-size: 12px; font-weight: 600; color: #eef0fa; flex: none;
-    padding: 5px 13px; border-radius: 999px; cursor: pointer; border: 1px solid rgba(255,255,255,.16);
-    background: rgba(255,255,255,.1);
-    transition: background 120ms ease, border-color 120ms ease, transform 80ms ease;
+    padding: 5px 13px; border-radius: 999px; cursor: pointer;
+    border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.09);
+    transition: background 130ms ease, border-color 130ms ease, transform 90ms ease, color 200ms ease;
   }
-  .btn:hover { background: rgba(255,255,255,.18); border-color: rgba(255,255,255,.3); }
-  .btn:active { transform: scale(.96); }
-  .btn.quiet { background: none; border-color: rgba(255,255,255,.1); color: #b8bccd; }
-  .btn.quiet:hover { color: #eef0fa; border-color: rgba(255,255,255,.24); }
+  .btn:hover { background: rgba(255,255,255,0.17); border-color: rgba(255,255,255,0.3); }
+  .btn:active { transform: scale(0.95); }
+  .btn.done { color: #b8f5cb; border-color: rgba(150,255,185,0.4); background: rgba(120,255,170,0.10); }
+  .btn.quiet { background: none; border-color: rgba(255,255,255,0.1); color: #b8bccd; }
+  .btn.quiet:hover { color: #eef0fa; border-color: rgba(255,255,255,0.24); }
 
   @media (prefers-reduced-motion: reduce) {
-    #pill, #pill::before, #pill::after,
-    #pill.focus::after, #pill.success-pulse,
-    #pill.success-shimmer, .answer-card { animation: none !important; }
+    #pill, #pill.enter, #pill.ok, #pill.err, .stag, .chip,
+    .shimmer, .ans.reveal, #pill.panel { animation: none !important; }
+    .ans.reveal { -webkit-mask-image: none; mask-image: none; }
   }
 </style>
 </head>
 <body>
-  <div id="pill" class="hidden"></div>
+  <div id="pill" class="hidden" data-mode="">
+    <canvas id="wave"></canvas>
+    <div id="card"></div>
+  </div>
 <script>
-  const pill = document.getElementById("pill");
-  const invoke = (cmd, args) => window.__TAURI__.core.invoke(cmd, args);
-  const BAR_COUNT = 5;
-  const BAR_GAIN = [0.6, 0.9, 1.2, 0.9, 0.6];
-  let lastState = "";
-  let lastRecordingTimer = "0:00";
+"use strict";
+const invoke = (cmd, args) => window.__TAURI__.core.invoke(cmd, args);
+const log = (message) => invoke("ui_log", { message }).catch(() => {});
+const pill = document.getElementById("pill");
+const wave = document.getElementById("wave");
+const card = document.getElementById("card");
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  function setMode(mode) {
-    if (pill.dataset.mode === mode) return false;
-    pill.dataset.mode = mode;
-    pill.classList.remove("focus", "success-pulse", "success-shimmer");
-    void pill.offsetWidth;
-    pill.classList.add("focus");
-    return true;
+/* ================= the liquid ================= */
+// One simulation, five moods, all parameters — never a different renderer:
+//   voice   → the liquid rises and sloshes with the mic level
+//   working → a steady current, bubbles climbing through it
+//   success → the vessel brims full and blooms
+//   silence → the liquid drains away
+//   error   → an amber jolt through the surface
+// The liquid is three colors mixing: a crimson undercurrent, a purple body
+// that blends into it, and white light living on the surface. States shift
+// which color dominates: errors surge crimson, success turns white.
+const DEEP = [205, 25, 75];              // crimson undercurrent, always there
+const TINT = {
+  rec:    [155, 62, 255],                // purple body
+  assist: [178, 82, 255],
+  ok:     [248, 242, 255],               // success: the liquid turns white
+  err:    [235, 40, 65],                 // error: crimson takes over
+  mute:   [168, 130, 215],
+};
+const rgba = (c, a) => `rgba(${c[0]|0},${c[1]|0},${c[2]|0},${a})`;
+const dim  = (c, f) => [c[0]*f, c[1]*f, c[2]*f];
+const mix  = (a, b, k) => [a[0]+(b[0]-a[0])*k, a[1]+(b[1]-a[1])*k, a[2]+(b[2]-a[2])*k];
+const now = () => performance.now() / 1000;
+window.__LIQ = [];  // test harness hook: lets screenshots snap springs to target
+
+function Liquid(canvas) {
+  const ctx = canvas.getContext("2d");
+  const R = {
+    raf: 0, prev: 0,
+    level: 0, vel: 0, target: 0,        // spring-tracked mic level
+    fill: 0.42, fv: 0, fillT: 0.42,     // spring-tracked liquid level
+    tint: [...TINT.rec], want: TINT.rec,
+    impulse: 0,                          // slosh kick (error / mode changes)
+    bubbleOn: false, bubbles: [], nextBubble: 0,
+    bloomAt: -1,                         // success bloom start time
+    active: false,
+  };
+  window.__LIQ.push(R);
+
+  function set(opts) {
+    if (opts.tint) R.want = opts.tint;
+    if (opts.fill !== undefined) R.fillT = opts.fill;
+    R.bubbleOn = !!opts.bubbles;
+    if (opts.kick) R.impulse = Math.min(1.6, R.impulse + opts.kick);
+    if (opts.bloom) R.bloomAt = now();
+    if (!R.active) R.active = true;
+    startLoop();
+  }
+  function setLevel(raw) { R.target = Math.min(1, Math.max(0, raw * 9)); }
+  function off() {
+    R.active = false; R.bloomAt = -1; R.bubbles = []; R.impulse = 0;
+    stopLoop();
   }
 
-  function setLevel(level) {
-    const eased = Math.min(1, Math.max(0, level * 9));
-    pill.style.setProperty("--level", eased.toFixed(3));
-    return eased;
+  function startLoop() {
+    if (REDUCED) { drawStill(); return; }
+    if (R.raf) return;
+    R.prev = now();
+    R.raf = requestAnimationFrame(frame);
+  }
+  function stopLoop() {
+    if (R.raf) cancelAnimationFrame(R.raf);
+    R.raf = 0;
   }
 
-  function confidencePulse() {
-    pill.classList.remove("success-pulse");
-    void pill.offsetWidth;
-    pill.classList.add("success-pulse");
+  function frame() {
+    R.raf = requestAnimationFrame(frame);
+    const t = now(), dt = Math.min(0.05, t - R.prev);
+    R.prev = t;
+    // voice spring: snappy attack, soft release
+    const k = R.target > R.level ? 180 : 60;
+    R.vel += (R.target - R.level) * k * dt;
+    R.vel *= Math.exp(-14 * dt);
+    R.level = Math.max(0, R.level + R.vel * dt);
+    // liquid level spring: heavier, so the fill feels like mass
+    R.fv += (R.fillT - R.fill) * 40 * dt;
+    R.fv *= Math.exp(-9 * dt);
+    R.fill = Math.max(0, Math.min(1, R.fill + R.fv * dt));
+    R.impulse *= Math.exp(-2.6 * dt);
+    for (let i = 0; i < 3; i++) R.tint[i] += (R.want[i] - R.tint[i]) * Math.min(1, 7 * dt);
+    draw(t, dt);
   }
 
-  function render(s) {
-    pill.classList.remove("hidden");
-    pill.classList.remove("answer");
-    if (s.state !== lastState) {
-      pill.classList.remove("focus", "success-pulse", "success-shimmer");
+  function fit() {
+    const w = canvas.clientWidth, h = canvas.clientHeight, dpr = devicePixelRatio || 1;
+    if (!w || !h) return null;
+    if (canvas.width !== (w * dpr | 0) || canvas.height !== (h * dpr | 0)) {
+      canvas.width = w * dpr | 0; canvas.height = h * dpr | 0;
     }
-    switch (s.state) {
-      case "recording": {
-        if (setMode("rec")) {
-          pill.style.minWidth = "0";
-          pill.innerHTML =
-            '<div id="bars">' +
-            "<span></span>".repeat(BAR_COUNT) +
-            '</div><div id="timer">0:00</div>';
-        }
-        const bars = pill.querySelectorAll("#bars span");
-        const boosted = setLevel(s.level || 0);
-        bars.forEach((bar, i) => {
-          const jitter = 0.75 + Math.random() * 0.5;
-          bar.style.height = Math.min(18, 3 + boosted * BAR_GAIN[i] * jitter * 15) + "px";
-        });
-        const secs = Math.floor(s.secs);
-        lastRecordingTimer = Math.floor(secs / 60) + ":" + String(secs % 60).padStart(2, "0");
-        pill.querySelector("#timer").textContent = lastRecordingTimer;
-        break;
-      }
-      case "assist-recording": {
-        if (setMode("assist-rec")) {
-          pill.style.minWidth = "0";
-          pill.innerHTML =
-            '<div class="ai">✦</div><div id="bars">' +
-            "<span></span>".repeat(BAR_COUNT) +
-            '</div><div id="timer">0:00</div>';
-        }
-        const bars = pill.querySelectorAll("#bars span");
-        const boosted = setLevel(s.level || 0);
-        bars.forEach((bar, i) => {
-          const jitter = 0.75 + Math.random() * 0.5;
-          bar.style.height = Math.min(18, 3 + boosted * BAR_GAIN[i] * jitter * 15) + "px";
-        });
-        const secs = Math.floor(s.secs);
-        lastRecordingTimer = Math.floor(secs / 60) + ":" + String(secs % 60).padStart(2, "0");
-        pill.querySelector("#timer").textContent = lastRecordingTimer;
-        break;
-      }
-      case "processing":
-        setMode("proc");
-        setLevel(0.18);
-        pill.style.minWidth = "132px";
-        pill.innerHTML = '<div class="spinner"></div><div id="label" class="muted">Transcribing…</div>';
-        break;
-      case "assist-processing":
-        // First event builds the card; later ones only update the status
-        // line so the spinner and layout don't restart on every tick.
-        if (setMode("assist-proc")) {
-          pill.classList.add("answer");
-          pill.innerHTML =
-            '<div class="answer-card">' +
-            '<div class="answer-top"><div class="ai">✦</div><div>Assist</div></div>' +
-            '<div class="answer-query"></div>' +
-            '<div style="display:flex;align-items:center;gap:10px"><div class="spinner"></div><div class="status"></div></div>' +
-            '</div>';
-        } else {
-          pill.classList.add("answer");
-        }
-        setLevel(0.22);
-        pill.querySelector(".answer-query").textContent = s.query || "";
-        pill.querySelector(".status").textContent = s.status || "Thinking…";
-        break;
-      case "assist-answer": {
-        setMode("assist-answer");
-        setLevel(0.12);
-        pill.classList.add("answer");
-        pill.innerHTML =
-          '<div class="answer-card">' +
-          '<div class="answer-top"><div class="ai">✦</div><div>Answer</div></div>' +
-          '<div class="answer-query"></div>' +
-          '<div class="answer-context"></div>' +
-          '<div class="answer-text"></div>' +
-          '<div class="answer-foot"><div class="chips"></div>' +
-          '<div class="btn" id="copyAnswer">Copy</div>' +
-          '<div class="btn quiet" id="closeAnswer">✕</div></div>' +
-          '</div>';
-        pill.querySelector(".answer-query").textContent = s.query || "";
-        pill.querySelector(".answer-context").textContent = s.context_preview || "";
-        pill.querySelector(".answer-text").textContent = s.answer || "";
-        const chips = pill.querySelector(".chips");
-        for (const src of (s.sources || []).slice(0, 4)) {
-          const chip = document.createElement("div");
-          chip.className = "chip";
-          chip.textContent = src.title || src.url;
-          chip.title = src.url;
-          chip.addEventListener("click", () =>
-            invoke("open_url", { url: src.url }).catch((e) => log("open_url: " + e)));
-          chips.appendChild(chip);
-        }
-        const copy = pill.querySelector("#copyAnswer");
-        copy.addEventListener("click", () => {
-          invoke("copy_text", { text: s.answer || "" })
-            .then(() => { copy.textContent = "Copied ✓"; })
-            .catch((e) => log("copy_text: " + e));
-        });
-        pill.querySelector("#closeAnswer").addEventListener("click", () =>
-          invoke("dismiss_overlay").catch((e) => log("dismiss: " + e)));
-        break;
-      }
-      case "success":
-        setMode("success");
-        setLevel(0.1);
-        pill.style.minWidth = "0";
-        pill.innerHTML =
-          '<div id="bars">' +
-          "<span></span>".repeat(BAR_COUNT) +
-          '</div><div id="timer"></div>';
-        pill.querySelector("#timer").textContent = lastRecordingTimer;
-        pill.querySelectorAll("#bars span").forEach((bar, i) => {
-          bar.style.height = [8, 14, 18, 14, 8][i] + "px";
-        });
-        pill.classList.add("success-shimmer");
-        break;
-      case "no-speech":
-        setMode("done");
-        setLevel(0);
-        pill.style.minWidth = "0";
-        pill.innerHTML = '<div id="label" class="muted">No speech</div>';
-        break;
-      case "error":
-        setMode("done");
-        setLevel(0);
-        pill.innerHTML = '<div id="label" class="err"></div>';
-        pill.querySelector("#label").textContent = "⚠ " + s.message;
-        break;
-      case "loading":
-        setMode("load");
-        setLevel(0.1);
-        pill.innerHTML = '<div class="spinner"></div><div id="label" class="muted">Loading model…</div>';
-        break;
-      case "downloading":
-        setMode("download");
-        setLevel(0.14);
-        pill.style.minWidth = "300px";
-        pill.innerHTML =
-          '<div class="spinner"></div><div id="label" class="muted"></div>';
-        pill.querySelector("#label").textContent =
-          (s.message || "Downloading…") + (s.pct ? "  " + s.pct + "%" : "");
-        break;
-      default:
-        pill.dataset.mode = "";
-        setLevel(0);
-        pill.classList.add("hidden");
-    }
-    lastState = s.state || "";
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { w, h };
   }
 
-  // Hovering the answer card pins it open; leaving starts a short countdown.
-  pill.addEventListener("mouseenter", () => {
-    if (pill.dataset.mode === "assist-answer")
-      invoke("assist_hover", { hovering: true }).catch(() => {});
-  });
-  pill.addEventListener("mouseleave", () => {
-    if (pill.dataset.mode === "assist-answer")
-      invoke("assist_hover", { hovering: false }).catch(() => {});
-  });
+  // The liquid surface: layered travelling sines, amplitude from the voice.
+  function surfaceY(u, t, base, amp, phase) {
+    return base + amp * (
+      Math.sin(u * 4.4 + t * 2.6 + phase) * 0.5 +
+      Math.sin(u * 7.3 - t * 3.9 + phase * 1.7) * 0.3 +
+      Math.sin(u * 11.0 + t * 6.1 + phase * 0.6) * 0.2
+    );
+  }
 
-  const log = (message) =>
-    window.__TAURI__.core.invoke("ui_log", { message }).catch(() => {});
-  window.addEventListener("unhandledrejection", (e) => log("overlay rejection: " + e.reason));
-  window.__TAURI__.event
-    .listen("flowoss://state", (e) => render(e.payload))
-    .then(() => log("overlay listening"))
-    .catch((err) => log("overlay listen failed: " + err));
+  function fillLayer(t, cx, cy, r, base, amp, phase, top, bottom) {
+    const x0 = cx - r, x1 = cx + r, N = 40;
+    ctx.beginPath();
+    ctx.moveTo(x0, surfaceY(0, t, base, amp, phase));
+    for (let i = 1; i < N; i++) {
+      const u = i / (N - 1);
+      ctx.lineTo(x0 + u * 2 * r, surfaceY(u * 6.28, t, base, amp, phase));
+    }
+    ctx.lineTo(x1, cy + r + 2); ctx.lineTo(x0, cy + r + 2);
+    ctx.closePath();
+    const g = ctx.createLinearGradient(0, base - amp - 2, 0, cy + r);
+    g.addColorStop(0, top);
+    g.addColorStop(1, bottom);
+    ctx.fillStyle = g;
+    ctx.fill();
+  }
+
+  function draw(t, dt) {
+    const s = fit(); if (!s) return;
+    const { w, h } = s;
+    const cx = w / 2, cy = h / 2, r = Math.min(w, h) / 2 - 1.5;
+
+    ctx.clearRect(0, 0, w, h);
+    ctx.save();
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, 7); ctx.clip();
+
+    // where the surface sits: fill 0 = below the glass, 1 = above it
+    const base = (cy + r + 3) - R.fill * (2 * r + 6);
+    const breath = 1.0 + Math.sin(t * 1.6) * 0.6;
+    const amp = Math.min(r * 0.62, breath + R.level * r * 0.55 + R.impulse * r * 0.30);
+
+    // ambient glow: the liquid's light spills up into the dark glass
+    if (R.fill > 0.02) {
+      const gg = ctx.createLinearGradient(0, base - r * 1.2, 0, base);
+      gg.addColorStop(0, rgba(R.tint, 0));
+      gg.addColorStop(1, rgba(R.tint, 0.38 + R.level * 0.25));
+      ctx.fillStyle = gg;
+      ctx.fillRect(cx - r, base - r * 1.2, 2 * r, r * 1.2);
+    }
+
+    // crimson undercurrent first — out of phase, glimpsed in the troughs
+    fillLayer(t * 0.86, cx, cy, r, base + 1.0, amp * 1.35, 2.1,
+      rgba(DEEP, 0.8), rgba(dim(DEEP, 0.45), 0.92));
+    // purple body — luminous at the surface, blending into the crimson deep
+    fillLayer(t, cx, cy, r, base, amp, 0,
+      rgba(R.tint, 0.9), rgba(mix(R.tint, DEEP, 0.6), 0.85));
+    // a thread of white marbling folded between the two currents
+    fillLayer(t * 1.13, cx, cy, r, base + 0.8, amp * 1.6, 4.4,
+      "rgba(255,255,255,0.22)", "rgba(255,255,255,0)");
+
+    // inner light: the liquid glows from within, brighter as you speak
+    if (R.fill > 0.04) {
+      const depth = cy + r - base;
+      const gi = ctx.createRadialGradient(cx, base + depth * 0.4, 0, cx, base + depth * 0.4, r * 0.9);
+      gi.addColorStop(0, `rgba(255,255,255,${0.16 + R.level * 0.22})`);
+      gi.addColorStop(1, "rgba(255,255,255,0)");
+      ctx.fillStyle = gi;
+      ctx.fillRect(cx - r, base - 2, 2 * r, cy + r - base + 2);
+    }
+
+    // meniscus: a glowing line of light along the surface
+    if (R.fill > 0.015 && R.fill < 0.995) {
+      ctx.beginPath();
+      const N = 40;
+      for (let i = 0; i < N; i++) {
+        const u = i / (N - 1), x = cx - r + u * 2 * r;
+        const y = surfaceY(u * 6.28, t, base, amp, 0);
+        i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+      }
+      ctx.strokeStyle = `rgba(255,255,255,${0.5 + R.level * 0.4})`;
+      ctx.lineWidth = 1.3;
+      ctx.shadowColor = rgba(R.tint, 0.9);
+      ctx.shadowBlur = 6 + R.level * 10;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+
+    // bubbles: the work being done, climbing through the liquid
+    if (R.bubbleOn && t >= R.nextBubble) {
+      R.nextBubble = t + 0.10 + Math.random() * 0.16;
+      const a = Math.random() * 6.28;
+      R.bubbles.push({
+        x: cx + Math.cos(a) * r * 0.55 * Math.random(),
+        y: cy + r * 0.8,
+        vy: (14 + Math.random() * 26) * (r / 24),
+        wob: Math.random() * 6.28,
+        sz: (0.7 + Math.random() * 1.3) * Math.max(0.7, r / 24),
+      });
+    }
+    R.bubbles = R.bubbles.filter((b) => {
+      b.y -= b.vy * dt;
+      b.x += Math.sin(t * 5 + b.wob) * 6 * dt;
+      const gone = b.y < surfaceY((b.x - cx + r) / (2 * r) * 6.28, t, base, amp, 0) + 1;
+      if (!gone) {
+        ctx.fillStyle = rgba([255, 255, 255], 0.35);
+        ctx.beginPath(); ctx.arc(b.x, b.y, b.sz, 0, 7); ctx.fill();
+        ctx.strokeStyle = rgba(R.tint, 0.5);
+        ctx.lineWidth = 0.6;
+        ctx.stroke();
+      }
+      return !gone;
+    });
+
+    // success bloom: the brimming vessel releases its light
+    if (R.bloomAt >= 0) {
+      const k = Math.min(1, (t - R.bloomAt) / 0.65);
+      const ease = 1 - Math.pow(1 - k, 3);
+      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * (0.3 + ease * 0.9));
+      g.addColorStop(0, `rgba(255,255,255,${0.75 * (1 - k)})`);
+      g.addColorStop(0.6, rgba(R.tint, 0.4 * (1 - k)));
+      g.addColorStop(1, rgba(R.tint, 0));
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, w, h);
+      if (k >= 1 && Math.abs(R.fill - R.fillT) < 0.02) stopLoop();
+    }
+
+    ctx.restore();
+
+    // silence: once drained, rest
+    if (R.fillT === 0 && R.fill < 0.01 && R.bloomAt < 0) stopLoop();
+  }
+
+  function drawStill() {  // reduced motion: a single quiet frame
+    const s = fit(); if (!s) return;
+    const { w, h } = s;
+    const cx = w / 2, cy = h / 2, r = Math.min(w, h) / 2 - 1.5;
+    ctx.clearRect(0, 0, w, h);
+    ctx.save();
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, 7); ctx.clip();
+    const base = (cy + r + 3) - R.fillT * (2 * r + 6);
+    ctx.fillStyle = rgba(R.want, 0.7);
+    ctx.fillRect(cx - r, base, 2 * r, 2 * r);
+    ctx.restore();
+  }
+
+  return { set, setLevel, off };
+}
+
+const orb = Liquid(wave);
+
+// The card's small orb: recreated with the card's DOM, killed before it.
+let mini = null;
+function killMini() {
+  if (mini) { mini.off(); mini = null; }
+}
+
+/* ================= state rendering ================= */
+let lastState = "";
+
+function setMode(mode) {
+  const changed = pill.dataset.mode !== mode;
+  pill.dataset.mode = mode;
+  pill.classList.toggle("panel", mode === "assist-proc" || mode === "answer");
+  return changed;
+}
+
+function render(s) {
+  const appearing = pill.classList.contains("hidden");
+  pill.classList.remove("hidden");
+  if (s.state !== lastState) pill.classList.remove("ok", "err");
+  if (appearing && !REDUCED) {
+    pill.classList.remove("enter");
+    void pill.offsetWidth;
+    pill.classList.add("enter");
+  }
+  if (s.state !== "assist-processing" && s.state !== "assist-answer") killMini();
+
+  switch (s.state) {
+    case "recording":
+    case "assist-recording": {
+      const assist = s.state === "assist-recording";
+      setMode(assist ? "assist-rec" : "rec");
+      orb.setLevel(s.level || 0);
+      orb.set({
+        tint: assist ? TINT.assist : TINT.rec,
+        fill: 0.52 + (s.level || 0) * 2,
+        bubbles: false,
+      });
+      break;
+    }
+    case "processing":
+      setMode("proc");
+      orb.set({ tint: TINT.rec, fill: 0.5, bubbles: true });
+      break;
+    case "success":
+      setMode("success");
+      orb.set({ tint: TINT.ok, fill: 1, bubbles: false, bloom: true });
+      pill.classList.add("ok");
+      break;
+    case "no-speech":
+      setMode("nospeech");
+      orb.set({ tint: TINT.mute, fill: 0, bubbles: false });
+      break;
+    case "error":
+      setMode("error");
+      orb.set({ tint: TINT.err, fill: 0.42, bubbles: false, kick: 1.2 });
+      pill.classList.add("err");
+      break;
+    case "loading":
+      setMode("load");
+      orb.set({ tint: TINT.mute, fill: 0.45, bubbles: true });
+      break;
+    case "downloading":
+      // the vessel literally fills with the download
+      setMode("load");
+      orb.set({
+        tint: TINT.mute,
+        fill: Math.max(0.06, (s.pct || 0) / 100),
+        bubbles: true,
+      });
+      break;
+    case "assist-processing": {
+      // First event composes the card; later ticks only update the status
+      // line so nothing restarts. The small orb thinks in violet.
+      if (setMode("assist-proc")) {
+        orb.off();
+        killMini();
+        card.className = "center";
+        card.innerHTML =
+          '<div class="row stag"><canvas class="orb"></canvas>' +
+          '<div class="col"><div class="query"></div>' +
+          '<div class="status shimmer"></div></div></div>';
+        mini = Liquid(card.querySelector("canvas.orb"));
+        mini.set({ tint: TINT.assist, fill: 0.52, bubbles: true });
+      }
+      card.querySelector(".query").textContent = s.query || "";
+      card.querySelector(".status").textContent = s.status || "Thinking…";
+      break;
+    }
+    case "assist-answer": {
+      setMode("answer");
+      orb.off();
+      killMini();
+      card.className = "";
+      card.innerHTML =
+        '<div class="row stag"><canvas class="orb"></canvas>' +
+        '<div class="query" style="flex:1"></div>' +
+        '<div class="btn quiet" id="closeAnswer">✕</div></div>' +
+        '<div class="ctx stag" style="animation-delay:50ms"></div>' +
+        '<div class="ans"></div>' +
+        '<div class="foot stag" style="animation-delay:110ms"><div class="chips"></div>' +
+        '<div class="btn" id="copyAnswer">Copy</div></div>';
+      // the thinking liquid arrives brimming mint: done. (Just shy of full
+      // so the glowing meniscus stays visible — a disc reads as a dot.)
+      mini = Liquid(card.querySelector("canvas.orb"));
+      mini.set({ tint: TINT.ok, fill: 0.78, bloom: true });
+      card.querySelector(".query").textContent = s.query || "";
+      card.querySelector(".ctx").textContent = s.context_preview || "";
+      const ans = card.querySelector(".ans");
+      ans.textContent = s.answer || "";
+      ans.classList.add("reveal");
+      const chips = card.querySelector(".chips");
+      (s.sources || []).slice(0, 4).forEach((src, i) => {
+        const chip = document.createElement("div");
+        chip.className = "chip";
+        chip.style.animationDelay = 150 + i * 55 + "ms";
+        chip.textContent = src.title || src.url;
+        chip.title = src.url;
+        chip.addEventListener("click", () =>
+          invoke("open_url", { url: src.url }).catch((e) => log("open_url: " + e)));
+        chips.appendChild(chip);
+      });
+      const copy = card.querySelector("#copyAnswer");
+      copy.addEventListener("click", () => {
+        invoke("copy_text", { text: s.answer || "" })
+          .then(() => { copy.textContent = "Copied ✓"; copy.classList.add("done"); })
+          .catch((e) => log("copy_text: " + e));
+      });
+      card.querySelector("#closeAnswer").addEventListener("click", () =>
+        invoke("dismiss_overlay").catch((e) => log("dismiss: " + e)));
+      break;
+    }
+    default:
+      setMode("");
+      orb.off();
+      pill.classList.add("hidden");
+  }
+  lastState = s.state || "";
+}
+
+// Hovering the answer card pins it open; leaving starts a short countdown.
+pill.addEventListener("mouseenter", () => {
+  if (pill.dataset.mode === "answer")
+    invoke("assist_hover", { hovering: true }).catch(() => {});
+});
+pill.addEventListener("mouseleave", () => {
+  if (pill.dataset.mode === "answer")
+    invoke("assist_hover", { hovering: false }).catch(() => {});
+});
+
+window.addEventListener("unhandledrejection", (e) => log("overlay rejection: " + e.reason));
+window.__TAURI__.event
+  .listen("flowoss://state", (e) => render(e.payload))
+  .then(() => log("overlay listening"))
+  .catch((err) => log("overlay listen failed: " + err));
 </script>
 </body>
 </html>
