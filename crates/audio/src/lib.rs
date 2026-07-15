@@ -10,6 +10,9 @@ use anyhow::{anyhow, bail, Context, Result};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use flowoss_core::SAMPLE_RATE;
 
+mod feedback;
+pub use feedback::{FeedbackCue, FeedbackPlayer};
+
 /// Names of all available input devices, default first.
 pub fn list_input_devices() -> Result<Vec<String>> {
     let host = cpal::default_host();

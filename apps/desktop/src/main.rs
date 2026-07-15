@@ -96,6 +96,11 @@ fn assist_hover(engine: tauri::State<EngineHandle>, hovering: bool) -> Result<()
 }
 
 #[tauri::command]
+fn preview_sound(engine: tauri::State<EngineHandle>) -> Result<(), String> {
+    engine.send(Command::PreviewSound)
+}
+
+#[tauri::command]
 fn open_url(url: String) -> Result<(), String> {
     if !url.starts_with("https://") && !url.starts_with("http://") {
         return Err("only http(s) links can be opened".into());
@@ -238,7 +243,7 @@ fn build_windows(app: &AppHandle) -> tauri::Result<()> {
     // the first show — calling it on an unrealized GTK window panics in tao.
     let overlay = WebviewWindowBuilder::new(app, "overlay", WebviewUrl::App("overlay.html".into()))
         .title("FlowOSS")
-        .inner_size(26.0, 26.0)
+        .inner_size(54.0, 24.0)
         // GTK ignores programmatic resize() on non-resizable windows and
         // snaps the overlay to its ~200x200 natural size, so the window must
         // stay resizable on Linux; the min==max size hints the engine pins on
@@ -347,6 +352,7 @@ fn main() {
             copy_text,
             dismiss_overlay,
             assist_hover,
+            preview_sound,
             open_url,
             model_status,
             hotkey_binding,

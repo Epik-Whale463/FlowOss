@@ -4,182 +4,412 @@
 <meta charset="utf-8">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { background: transparent !important; overflow: hidden; width: 100%; height: 100%; }
+  html, body {
+    background: transparent !important;
+    overflow: hidden;
+    width: 100%; height: 100%;
+  }
   body {
     font-family: system-ui, -apple-system, "Segoe UI Variable", "Segoe UI", sans-serif;
     -webkit-user-select: none; user-select: none; cursor: default;
+    /* No padding — the window IS the pill. Padding creates a dark rectangular box. */
   }
 
-  /* ---- the vessel ----
-     A small orb of dark glass holding liquid light. No words, no numbers:
-     every state is the same liquid in a different mood — sloshing with the
-     voice, bubbling while it works, filling and blooming when done,
-     draining when nothing was said, flaring amber on error. One canvas
-     simulation renders every orb, including the small one in the assist
-     card; the glass is CSS. */
+  :root {
+    --spring: cubic-bezier(0.22, 1.28, 0.36, 1);
+    --spring-soft: cubic-bezier(0.25, 1.1, 0.4, 1);
+    --spring-out: cubic-bezier(0.4, 0, 0.2, 1);
+    --dur-enter: 460ms;
+    --dur-morph: 500ms;
+    --dur-exit: 340ms;
+    --dur-settle: 400ms;
+    --edge-soft: rgba(255, 255, 255, 0.18);
+    --ink: #f4f5f8;
+    --muted: #9aa0ae;
+    /* Chrome rim: lit from above so the edge reads as a 3D metal lip */
+    --rim: linear-gradient(180deg,
+      #f5f7fb 0%,
+      #d8dce4 22%,
+      #9aa0aa 48%,
+      #5c6068 74%,
+      #c6cad2 100%);
+  }
+
+  /*
+   * 3D black capsule — ONE element, fills the transparent window.
+   * NEVER use outer box-shadow / filter drop-shadow: WebView composites
+   * those as a black rectangle on transparent windows.
+   * Depth is inset-only + gradient body + chrome rim.
+   *
+   * DOM: body > #pill > (#wave | #card)  — nothing else.
+   */
   #pill {
     position: relative;
     width: 100%; height: 100%;
-    border-radius: 50%;
-    background:
-      radial-gradient(circle at 34% 22%, rgba(46,48,66,0.4), rgba(5,5,9,0.96) 58%),
-      rgba(7,7,12,0.95);
-    /* No backdrop-filter: WebView2 composites it as a visible rectangle
-       around the transparent window. */
-    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 999px;
+    border: 1.5px solid transparent;
+    background-image:
+      linear-gradient(180deg,
+        #1a1b20 0%,
+        #0e0e11 40%,
+        #070708 72%,
+        #050506 100%),
+      radial-gradient(130% 90% at 50% 50%,
+        transparent 48%,
+        rgba(0, 0, 0, .28) 100%),
+      var(--rim);
+    background-origin: border-box;
+    background-clip: padding-box, padding-box, border-box;
+    /* INSET ONLY — zero outer shadows, no top white shine */
     box-shadow:
-      0 0 0 1px rgba(0,0,0,0.35),
-      inset 0 1px 1px rgba(255,255,255,0.22),
-      inset 0 -2px 6px rgba(0,0,0,0.5);
-    color: #f4f5fb;
+      inset 0 -4px 8px rgba(0, 0, 0, .50),
+      inset 3px 0 6px rgba(0, 0, 0, .16),
+      inset -3px 0 6px rgba(0, 0, 0, .16);
+    color: var(--ink);
     overflow: hidden;
     transform-origin: 50% 0%;
-    transition: opacity 160ms ease, border-color 480ms ease;
+    will-change: transform, opacity, border-radius;
+    transition:
+      opacity 150ms var(--spring-out),
+      border-radius var(--dur-morph) var(--spring);
   }
-  #pill.hidden { opacity: 0; }
+  #pill.hidden { opacity: 0; pointer-events: none; }
 
-  /* A crescent of light on the glass, top-left — the room's reflection. */
-  #pill::before {
-    content: ""; position: absolute; inset: 0; border-radius: inherit;
-    background: radial-gradient(ellipse 34% 20% at 33% 16%,
-      rgba(255,255,255,0.30), rgba(255,255,255,0.04) 60%, transparent 68%);
-    pointer-events: none; z-index: 2;
+  /* No specular / white shine band */
+  #pill::before { content: none; }
+
+  /* Thin inner edge only — no bright top lip */
+  #pill::after {
+    content: "";
+    position: absolute;
+    inset: 1.5px;
+    border-radius: inherit;
+    border: 1px solid rgba(255, 255, 255, .10);
+    pointer-events: none;
+    z-index: 4;
   }
 
-  /* Entrance: a droplet condensing out of the top edge — slips down,
-     overshoots, snaps into focus. Replayed only when the orb (re)appears. */
-  #pill.enter { animation: condense 420ms cubic-bezier(0.2, 1.35, 0.32, 1); }
+  #pill.enter { animation: condense var(--dur-enter) var(--spring) both; }
   @keyframes condense {
-    from { transform: translateY(-14px) scale(0.35); opacity: 0; filter: blur(6px); }
-    62%  { transform: translateY(2px) scale(1.06); opacity: 1; filter: blur(0); }
-    to   { transform: translateY(0) scale(1); opacity: 1; filter: blur(0); }
+    0%   { transform: translateY(-10px) scale3d(.55, .8, 1); opacity: 0; }
+    60%  { transform: translateY(1px) scale3d(1.03, 1.04, 1); opacity: 1; }
+    100% { transform: none; opacity: 1; }
   }
 
-  /* Mood lives on the glass rim. */
   #pill.err {
-    border-color: rgba(255,70,105,0.55);
-    animation: settle 360ms ease-out;
+    background-image:
+      linear-gradient(180deg, #2a181c 0%, #140a0c 42%, #080506 100%),
+      radial-gradient(130% 90% at 50% 50%, transparent 48%, rgba(0, 0, 0, .28) 100%),
+      linear-gradient(180deg, #ffd0d6 0%, #e09098 30%, #804048 70%, #e8a8b0 100%);
+    animation: settle var(--dur-settle) var(--spring-soft) both;
   }
   @keyframes settle {
-    0% { transform: translateX(0); } 26% { transform: translateX(-2.5px) rotate(-1.5deg); }
-    56% { transform: translateX(2px) rotate(1deg); } 100% { transform: none; }
+    0%   { transform: translateX(0); }
+    20%  { transform: translateX(-2.5px); }
+    45%  { transform: translateX(1.8px); }
+    70%  { transform: translateX(-0.8px); }
+    100% { transform: none; }
   }
-  /* Success: the vessel brims, glows mint, then exhales and sinks away —
-     finished before the engine hides the window at 1.6 s. */
+
   #pill.ok {
-    border-color: rgba(255,255,255,0.55);
-    animation: exhale 380ms cubic-bezier(0.5, 0, 0.75, 1) 1080ms forwards;
+    background-image:
+      linear-gradient(180deg, #1a2622 0%, #0a100e 42%, #050806 100%),
+      radial-gradient(130% 90% at 50% 50%, transparent 48%, rgba(0, 0, 0, .28) 100%),
+      linear-gradient(180deg, #e8fff4 0%, #a0d8c0 30%, #406858 70%, #c0e8d4 100%);
+    animation: exhale var(--dur-exit) var(--spring-out) 1100ms forwards;
   }
   @keyframes exhale {
-    to { transform: translateY(-8px) scale(0.6); opacity: 0; filter: blur(4px); }
+    to { transform: translateY(-6px) scale3d(.94, .94, 1); opacity: 0; }
   }
 
-  #wave { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; }
-  #card { display: none; flex-direction: column; gap: 12px; width: 100%; height: 100%; min-height: 0; }
-  #card.center { justify-content: center; }
+  #wave {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    z-index: 1;
+    border-radius: inherit;
+  }
 
-  /* ---- the assist card: the same glass, unfolded into a sheet.
-     No labels — a small orb of the same liquid says what's happening:
-     violet and bubbling while it thinks, brimming mint when the answer
-     lands. Only functional text remains. ---- */
+  /* ── Assist card: same 3D material, flattened into a thick rounded plate ── */
+  #card {
+    display: none;
+    position: relative;
+    z-index: 5;
+    flex-direction: column;
+    width: 100%; height: 100%;
+    min-height: 0;
+  }
   #pill.panel {
     border-radius: 22px;
-    padding: 16px 18px;
-    background:
-      linear-gradient(160deg, rgba(46,48,63,0.60), rgba(9,9,15,0.93) 72%),
-      rgba(12,12,19,0.92);
-    display: flex; align-items: stretch;
-    animation: unfold 420ms cubic-bezier(0.18, 1.15, 0.3, 1);
+    padding: 0;
+    background-image:
+      linear-gradient(165deg, #1a1b20 0%, #0c0c0e 45%, #060607 100%),
+      radial-gradient(130% 90% at 50% 50%,
+        transparent 48%,
+        rgba(0, 0, 0, .22) 100%),
+      var(--rim);
+    background-origin: border-box;
+    background-clip: padding-box, padding-box, border-box;
+    /* INSET ONLY — no outer shadow, no top shine */
+    box-shadow:
+      inset 0 -4px 10px rgba(0, 0, 0, .5),
+      inset 3px 0 6px rgba(0, 0, 0, .14),
+      inset -3px 0 6px rgba(0, 0, 0, .14);
+    display: flex;
+    align-items: stretch;
+    animation: unfold var(--dur-morph) var(--spring) both;
   }
-  #pill.panel::before { display: none; }
+  #pill.panel::after {
+    inset: 1.5px;
+    border-radius: 20.5px;
+  }
   #pill.panel #wave { display: none; }
   #pill.panel #card { display: flex; }
-  @keyframes unfold {
-    from { transform: translateY(-14px) scaleX(0.7) scaleY(0.3); opacity: 0.3; filter: blur(4px); }
-    68%  { transform: translateY(1px) scaleX(1.006) scaleY(1.006); opacity: 1; filter: blur(0); }
-    to   { transform: none; opacity: 1; filter: blur(0); }
-  }
-  .stag { animation: rise 380ms cubic-bezier(0.2, 0.9, 0.25, 1) both; }
-  @keyframes rise { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: none; } }
 
-  .row { display: flex; align-items: center; gap: 11px; min-width: 0; }
-  .col { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
-  /* a smaller vessel of the same glass, living inside the card */
-  canvas.orb {
-    width: 38px; height: 38px; flex: none; border-radius: 50%;
-    background:
-      radial-gradient(circle at 34% 22%, rgba(46,48,66,0.4), rgba(5,5,9,0.96) 58%),
-      rgba(7,7,12,0.95);
-    border: 1px solid rgba(255,255,255,0.16);
-    box-shadow: inset 0 1px 1px rgba(255,255,255,0.18), inset 0 -2px 5px rgba(0,0,0,0.5);
+  @keyframes unfold {
+    0%   { transform: translateY(-8px) scaleX(.85) scaleY(.5); opacity: .4; }
+    58%  { transform: translateY(1px) scale(1.01); opacity: 1; }
+    100% { transform: none; opacity: 1; }
   }
-  .query {
-    color: #f4f5fb; font-size: 14px; font-weight: 550;
-    min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+
+  .stag { animation: rise 400ms var(--spring) both; }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: none; }
   }
-  .ctx {
-    color: #d4d6e2; font-size: 11.5px; line-height: 1.35;
-    padding: 8px 10px; border-radius: 12px;
-    background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.10);
-    max-height: 62px; overflow: hidden; flex: none;
+
+  /* Header: title left, action right */
+  .head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px 0;
+    min-width: 0;
+    flex: none;
   }
-  .ctx:empty { display: none; }
-  .status { font-size: 13px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .shimmer {
-    background: linear-gradient(90deg, #c7cbdc 32%, #ffffff 50%, #c7cbdc 68%);
-    background-size: 220% 100%;
+  .head-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .title {
+    color: var(--ink);
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .subtitle {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.35;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .subtitle:empty { display: none; }
+
+  /* Thinking state: centered compact block */
+  #card.thinking {
+    justify-content: center;
+    padding: 18px 20px;
+    gap: 8px;
+  }
+  #card.thinking .head {
+    padding: 0;
+  }
+  .status-line {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+  .pulse {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #c8c4ff;
+    box-shadow: 0 0 0 0 rgba(200, 196, 255, .45);
+    flex: none;
+    animation: pulse 1.4s var(--spring-out) infinite;
+  }
+  @keyframes pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(200, 196, 255, .45); opacity: 1; }
+    70%  { box-shadow: 0 0 0 8px rgba(200, 196, 255, 0); opacity: .85; }
+    100% { box-shadow: 0 0 0 0 rgba(200, 196, 255, 0); opacity: 1; }
+  }
+  .status-text {
+    font-size: 13.5px;
+    font-weight: 550;
+    color: var(--ink);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .status-text.shimmer {
+    background: linear-gradient(90deg, #8a8e9c 30%, #f0f1f5 50%, #8a8e9c 70%);
+    background-size: 200% 100%;
     -webkit-background-clip: text; background-clip: text;
     -webkit-text-fill-color: transparent;
-    animation: shimmerSlide 1.7s linear infinite;
+    animation: shimmer 1.8s linear infinite;
   }
-  @keyframes shimmerSlide { from { background-position: 135% 0; } to { background-position: -35% 0; } }
+  @keyframes shimmer {
+    from { background-position: 120% 0; }
+    to   { background-position: -40% 0; }
+  }
+  .query-muted {
+    color: var(--muted);
+    font-size: 12.5px;
+    padding-left: 18px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Answer body */
+  .body {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px 16px 0;
+    overflow: hidden;
+  }
+  .ctx {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.4;
+    padding: 0 0 2px;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+    padding-bottom: 10px;
+    max-height: 52px;
+    overflow: hidden;
+    flex: none;
+  }
+  .ctx:empty { display: none; }
 
   .ans {
-    color: #f7f8fc; font-size: 16px; line-height: 1.55;
-    white-space: pre-wrap; overflow-y: auto; flex: 1; min-height: 0; padding-right: 8px;
-    -webkit-user-select: text; user-select: text; cursor: text;
+    color: var(--ink);
+    font-size: 15px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+    padding-right: 4px;
+    -webkit-user-select: text; user-select: text;
+    cursor: text;
   }
   .ans.reveal {
-    -webkit-mask-image: linear-gradient(100deg, #000 46%, transparent 61%);
-    mask-image: linear-gradient(100deg, #000 46%, transparent 61%);
+    -webkit-mask-image: linear-gradient(100deg, #000 48%, transparent 62%);
+            mask-image: linear-gradient(100deg, #000 48%, transparent 62%);
     -webkit-mask-size: 260% 100%; mask-size: 260% 100%;
-    animation: wipe 640ms cubic-bezier(0.3, 0, 0.3, 1) forwards;
+    animation: wipe 640ms var(--spring-out) forwards;
   }
   @keyframes wipe {
-    from { -webkit-mask-position: 132% 0; mask-position: 132% 0; }
-    to   { -webkit-mask-position: 0% 0; mask-position: 0% 0; }
+    from { -webkit-mask-position: 130% 0; mask-position: 130% 0; }
+    to   { -webkit-mask-position: 0 0; mask-position: 0 0; }
   }
-  .ans::-webkit-scrollbar { width: 6px; }
-  .ans::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.22); border-radius: 3px; }
+  .ans::-webkit-scrollbar { width: 5px; }
+  .ans::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,.18);
+    border-radius: 3px;
+  }
   .ans::-webkit-scrollbar-track { background: transparent; }
 
-  .foot { display: flex; align-items: center; gap: 6px; min-width: 0; padding-top: 2px; }
-  .chips { display: flex; gap: 6px; min-width: 0; overflow: hidden; flex: 1; }
+  /* Footer: sources left, primary action right */
+  .foot {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    flex: none;
+    padding: 12px 16px 14px;
+    border-top: 1px solid rgba(255,255,255,.08);
+    margin-top: 4px;
+  }
+  .chips {
+    display: flex;
+    gap: 6px;
+    min-width: 0;
+    overflow: hidden;
+    flex: 1;
+  }
   .chip {
-    font-size: 11px; color: #cfd4e8; white-space: nowrap; overflow: hidden;
-    text-overflow: ellipsis; max-width: 150px; flex: none;
-    padding: 4px 10px; border-radius: 999px; cursor: pointer;
-    background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.11);
-    transition: background 130ms ease, border-color 130ms ease, transform 130ms ease;
-    animation: pop 340ms cubic-bezier(0.2, 1.1, 0.3, 1) both;
+    font-size: 11px;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 140px;
+    flex: none;
+    padding: 4px 10px;
+    border-radius: 999px;
+    cursor: pointer;
+    background: transparent;
+    border: 1px solid rgba(255,255,255,.16);
+    transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
+    animation: pop 360ms var(--spring) both;
   }
-  @keyframes pop { from { opacity: 0; transform: scale(0.82) translateY(4px); } to { opacity: 1; transform: none; } }
-  .chip:hover { background: rgba(164,182,255,0.16); border-color: rgba(164,182,255,0.45); transform: translateY(-1px); }
+  @keyframes pop {
+    from { opacity: 0; transform: scale(.9); }
+    to   { opacity: 1; transform: none; }
+  }
+  .chip:hover {
+    color: var(--ink);
+    border-color: rgba(255,255,255,.35);
+    background: rgba(255,255,255,.06);
+  }
+
   .btn {
-    font-size: 12px; font-weight: 600; color: #eef0fa; flex: none;
-    padding: 5px 13px; border-radius: 999px; cursor: pointer;
-    border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.09);
-    transition: background 130ms ease, border-color 130ms ease, transform 90ms ease, color 200ms ease;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink);
+    flex: none;
+    padding: 6px 14px;
+    border-radius: 999px;
+    cursor: pointer;
+    border: 1px solid var(--edge-soft);
+    background: rgba(255,255,255,.08);
+    transition: background 120ms ease, border-color 120ms ease, transform 100ms ease, color 160ms ease;
   }
-  .btn:hover { background: rgba(255,255,255,0.17); border-color: rgba(255,255,255,0.3); }
-  .btn:active { transform: scale(0.95); }
-  .btn.done { color: #b8f5cb; border-color: rgba(150,255,185,0.4); background: rgba(120,255,170,0.10); }
-  .btn.quiet { background: none; border-color: rgba(255,255,255,0.1); color: #b8bccd; }
-  .btn.quiet:hover { color: #eef0fa; border-color: rgba(255,255,255,0.24); }
+  .btn:hover {
+    background: rgba(255,255,255,.14);
+    border-color: rgba(255,255,255,.35);
+  }
+  .btn:active { transform: scale(.96); }
+  .btn.done {
+    color: #b6f0cc;
+    border-color: rgba(150, 230, 185, .4);
+    background: rgba(100, 210, 150, .1);
+  }
+  .btn.icon {
+    width: 28px; height: 28px;
+    padding: 0;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1;
+  }
+  .btn.icon:hover {
+    color: var(--ink);
+    background: rgba(255,255,255,.08);
+    border-color: rgba(255,255,255,.12);
+  }
 
   @media (prefers-reduced-motion: reduce) {
     #pill, #pill.enter, #pill.ok, #pill.err, .stag, .chip,
-    .shimmer, .ans.reveal, #pill.panel { animation: none !important; }
+    .status-text.shimmer, .ans.reveal, #pill.panel, .pulse {
+      animation: none !important;
+    }
     .ans.reveal { -webkit-mask-image: none; mask-image: none; }
   }
 </style>
@@ -191,47 +421,34 @@
   </div>
 <script>
 "use strict";
-const invoke = (cmd, args) => window.__TAURI__.core.invoke(cmd, args);
+const TAURI = window.__TAURI__;
+const invoke = (cmd, args) => TAURI ? TAURI.core.invoke(cmd, args) : Promise.resolve();
 const log = (message) => invoke("ui_log", { message }).catch(() => {});
 const pill = document.getElementById("pill");
 const wave = document.getElementById("wave");
 const card = document.getElementById("card");
 const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-/* ================= the liquid ================= */
-// One simulation, five moods, all parameters — never a different renderer:
-//   voice   → the liquid rises and sloshes with the mic level
-//   working → a steady current, bubbles climbing through it
-//   success → the vessel brims full and blooms
-//   silence → the liquid drains away
-//   error   → an amber jolt through the surface
-// The liquid is three colors mixing: a crimson undercurrent, a purple body
-// that blends into it, and white light living on the surface. States shift
-// which color dominates: errors surge crimson, success turns white.
-const DEEP = [205, 25, 75];              // crimson undercurrent, always there
 const TINT = {
-  rec:    [155, 62, 255],                // purple body
-  assist: [178, 82, 255],
-  ok:     [248, 242, 255],               // success: the liquid turns white
-  err:    [235, 40, 65],                 // error: crimson takes over
-  mute:   [168, 130, 215],
+  rec:    [150, 190, 255],
+  assist: [190, 160, 255],
+  ok:     [140, 235, 200],
+  err:    [255, 120, 140],
+  mute:   [190, 196, 210],
 };
 const rgba = (c, a) => `rgba(${c[0]|0},${c[1]|0},${c[2]|0},${a})`;
-const dim  = (c, f) => [c[0]*f, c[1]*f, c[2]*f];
-const mix  = (a, b, k) => [a[0]+(b[0]-a[0])*k, a[1]+(b[1]-a[1])*k, a[2]+(b[2]-a[2])*k];
 const now = () => performance.now() / 1000;
-window.__LIQ = [];  // test harness hook: lets screenshots snap springs to target
+window.__LIQ = [];
 
-function Liquid(canvas) {
+function LiquidGlass(canvas) {
   const ctx = canvas.getContext("2d");
   const R = {
     raf: 0, prev: 0,
-    level: 0, vel: 0, target: 0,        // spring-tracked mic level
-    fill: 0.42, fv: 0, fillT: 0.42,     // spring-tracked liquid level
+    level: 0, vel: 0, target: 0,
+    fill: 0.42, fv: 0, fillT: 0.42,
     tint: [...TINT.rec], want: TINT.rec,
-    impulse: 0,                          // slosh kick (error / mode changes)
-    bubbleOn: false, bubbles: [], nextBubble: 0,
-    bloomAt: -1,                         // success bloom start time
+    impulse: 0, bloomAt: -1,
+    kind: "recording",
     active: false,
   };
   window.__LIQ.push(R);
@@ -239,7 +456,7 @@ function Liquid(canvas) {
   function set(opts) {
     if (opts.tint) R.want = opts.tint;
     if (opts.fill !== undefined) R.fillT = opts.fill;
-    R.bubbleOn = !!opts.bubbles;
+    if (opts.kind) R.kind = opts.kind;
     if (opts.kick) R.impulse = Math.min(1.6, R.impulse + opts.kick);
     if (opts.bloom) R.bloomAt = now();
     if (!R.active) R.active = true;
@@ -247,7 +464,7 @@ function Liquid(canvas) {
   }
   function setLevel(raw) { R.target = Math.min(1, Math.max(0, raw * 9)); }
   function off() {
-    R.active = false; R.bloomAt = -1; R.bubbles = []; R.impulse = 0;
+    R.active = false; R.bloomAt = -1; R.impulse = 0;
     stopLoop();
   }
 
@@ -266,18 +483,19 @@ function Liquid(canvas) {
     R.raf = requestAnimationFrame(frame);
     const t = now(), dt = Math.min(0.05, t - R.prev);
     R.prev = t;
-    // voice spring: snappy attack, soft release
-    const k = R.target > R.level ? 180 : 60;
+    const k = R.target > R.level ? 200 : 72;
+    const damp = R.target > R.level ? 14 : 11;
     R.vel += (R.target - R.level) * k * dt;
-    R.vel *= Math.exp(-14 * dt);
+    R.vel *= Math.exp(-damp * dt);
     R.level = Math.max(0, R.level + R.vel * dt);
-    // liquid level spring: heavier, so the fill feels like mass
-    R.fv += (R.fillT - R.fill) * 40 * dt;
-    R.fv *= Math.exp(-9 * dt);
+    R.fv += (R.fillT - R.fill) * 48 * dt;
+    R.fv *= Math.exp(-10 * dt);
     R.fill = Math.max(0, Math.min(1, R.fill + R.fv * dt));
-    R.impulse *= Math.exp(-2.6 * dt);
-    for (let i = 0; i < 3; i++) R.tint[i] += (R.want[i] - R.tint[i]) * Math.min(1, 7 * dt);
-    draw(t, dt);
+    R.impulse *= Math.exp(-2.8 * dt);
+    for (let i = 0; i < 3; i++) {
+      R.tint[i] += (R.want[i] - R.tint[i]) * Math.min(1, 8 * dt);
+    }
+    draw(t);
   }
 
   function fit() {
@@ -290,162 +508,122 @@ function Liquid(canvas) {
     return { w, h };
   }
 
-  // The liquid surface: layered travelling sines, amplitude from the voice.
-  function surfaceY(u, t, base, amp, phase) {
-    return base + amp * (
-      Math.sin(u * 4.4 + t * 2.6 + phase) * 0.5 +
-      Math.sin(u * 7.3 - t * 3.9 + phase * 1.7) * 0.3 +
-      Math.sin(u * 11.0 + t * 6.1 + phase * 0.6) * 0.2
-    );
-  }
-
-  function fillLayer(t, cx, cy, r, base, amp, phase, top, bottom) {
-    const x0 = cx - r, x1 = cx + r, N = 40;
+  function clip(w, h) {
+    const r = Math.max(2, Math.min(h, w) / 2);
     ctx.beginPath();
-    ctx.moveTo(x0, surfaceY(0, t, base, amp, phase));
-    for (let i = 1; i < N; i++) {
-      const u = i / (N - 1);
-      ctx.lineTo(x0 + u * 2 * r, surfaceY(u * 6.28, t, base, amp, phase));
-    }
-    ctx.lineTo(x1, cy + r + 2); ctx.lineTo(x0, cy + r + 2);
-    ctx.closePath();
-    const g = ctx.createLinearGradient(0, base - amp - 2, 0, cy + r);
-    g.addColorStop(0, top);
-    g.addColorStop(1, bottom);
-    ctx.fillStyle = g;
-    ctx.fill();
+    ctx.roundRect(0, 0, w, h, r);
+    ctx.clip();
   }
 
-  function draw(t, dt) {
+  function drawWaveform(t, w, h) {
+    const count = w > h * 1.5 ? 9 : 3;
+    const gap = Math.max(2.2, Math.min(4, w / 22));
+    const barW = Math.max(1.6, Math.min(2.5, (w * .42 - gap * (count - 1)) / count));
+    const total = count * barW + (count - 1) * gap;
+    const kick = R.impulse * .18;
+    for (let i = 0; i < count; i++) {
+      const centerBias = 1 - Math.abs(i - (count - 1) / 2) / Math.max(1, count / 2);
+      const live = .22 + R.level * (.56 + centerBias * .28) + kick * centerBias;
+      const idle = .14 + .06 * Math.sin(t * 2.0 + i * .72);
+      const height = Math.max(2.2, h * Math.min(.64, live + idle * (1 - R.level)));
+      const x = (w - total) / 2 + i * (barW + gap);
+      const y = (h - height) / 2;
+      ctx.fillStyle = `rgba(255,255,255,${.65 + centerBias * .2 + R.level * .1})`;
+      ctx.shadowColor = rgba(R.tint, .4);
+      ctx.shadowBlur = 3 + R.level * 4;
+      ctx.beginPath(); ctx.roundRect(x, y, barW, height, barW); ctx.fill();
+    }
+    ctx.shadowBlur = 0;
+  }
+
+  function drawProgress(t, w, h) {
+    const count = w > h * 1.5 ? 3 : 2;
+    for (let i = 0; i < count; i++) {
+      const phase = (t * .68 + i / count) % 1;
+      const x = w * (.35 + phase * .30);
+      const scale = .65 + Math.sin(phase * Math.PI) * .5;
+      ctx.fillStyle = `rgba(255,255,255,${.32 + scale * .4})`;
+      ctx.beginPath();
+      ctx.arc(x, h / 2, Math.max(1.2, h * .055 * scale), 0, 7);
+      ctx.fill();
+    }
+    if (R.kind === "download") {
+      const x0 = h * .5, width = w - h;
+      ctx.fillStyle = "rgba(255,255,255,.1)";
+      ctx.beginPath(); ctx.roundRect(x0, h - 5, width, 1.5, 1); ctx.fill();
+      ctx.fillStyle = "rgba(255,255,255,.75)";
+      ctx.beginPath(); ctx.roundRect(x0, h - 5, width * R.fill, 1.5, 1); ctx.fill();
+    }
+  }
+
+  function drawMark(w, h, kind) {
+    const cx = w / 2, cy = h / 2;
+    ctx.lineCap = "round"; ctx.lineJoin = "round";
+    ctx.strokeStyle = "rgba(255,255,255,.92)";
+    ctx.fillStyle = "rgba(255,255,255,.92)";
+    if (kind === "success" || kind === "answer") {
+      ctx.lineWidth = Math.max(1.7, h * .065);
+      ctx.beginPath();
+      ctx.moveTo(cx - h * .19, cy);
+      ctx.lineTo(cx - h * .045, cy + h * .13);
+      ctx.lineTo(cx + h * .23, cy - h * .16);
+      ctx.stroke();
+    } else if (kind === "error") {
+      ctx.lineWidth = Math.max(1.8, h * .065);
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - h * .18);
+      ctx.lineTo(cx, cy + h * .05);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(cx, cy + h * .20, Math.max(1, h * .035), 0, 7);
+      ctx.fill();
+    } else {
+      ctx.lineWidth = Math.max(1.7, h * .06);
+      ctx.beginPath();
+      ctx.moveTo(cx - h * .13, cy);
+      ctx.lineTo(cx + h * .13, cy);
+      ctx.stroke();
+    }
+  }
+
+  function draw(t) {
     const s = fit(); if (!s) return;
     const { w, h } = s;
-    const cx = w / 2, cy = h / 2, r = Math.min(w, h) / 2 - 1.5;
-
+    const cx = w / 2, cy = h / 2;
     ctx.clearRect(0, 0, w, h);
     ctx.save();
-    ctx.beginPath(); ctx.arc(cx, cy, r, 0, 7); ctx.clip();
+    clip(w, h);
 
-    // where the surface sits: fill 0 = below the glass, 1 = above it
-    const base = (cy + r + 3) - R.fill * (2 * r + 6);
-    const breath = 1.0 + Math.sin(t * 1.6) * 0.6;
-    const amp = Math.min(r * 0.62, breath + R.level * r * 0.55 + R.impulse * r * 0.30);
-
-    // ambient glow: the liquid's light spills up into the dark glass
-    if (R.fill > 0.02) {
-      const gg = ctx.createLinearGradient(0, base - r * 1.2, 0, base);
-      gg.addColorStop(0, rgba(R.tint, 0));
-      gg.addColorStop(1, rgba(R.tint, 0.38 + R.level * 0.25));
-      ctx.fillStyle = gg;
-      ctx.fillRect(cx - r, base - r * 1.2, 2 * r, r * 1.2);
-    }
-
-    // crimson undercurrent first — out of phase, glimpsed in the troughs
-    fillLayer(t * 0.86, cx, cy, r, base + 1.0, amp * 1.35, 2.1,
-      rgba(DEEP, 0.8), rgba(dim(DEEP, 0.45), 0.92));
-    // purple body — luminous at the surface, blending into the crimson deep
-    fillLayer(t, cx, cy, r, base, amp, 0,
-      rgba(R.tint, 0.9), rgba(mix(R.tint, DEEP, 0.6), 0.85));
-    // a thread of white marbling folded between the two currents
-    fillLayer(t * 1.13, cx, cy, r, base + 0.8, amp * 1.6, 4.4,
-      "rgba(255,255,255,0.22)", "rgba(255,255,255,0)");
-
-    // inner light: the liquid glows from within, brighter as you speak
-    if (R.fill > 0.04) {
-      const depth = cy + r - base;
-      const gi = ctx.createRadialGradient(cx, base + depth * 0.4, 0, cx, base + depth * 0.4, r * 0.9);
-      gi.addColorStop(0, `rgba(255,255,255,${0.16 + R.level * 0.22})`);
-      gi.addColorStop(1, "rgba(255,255,255,0)");
-      ctx.fillStyle = gi;
-      ctx.fillRect(cx - r, base - 2, 2 * r, cy + r - base + 2);
-    }
-
-    // meniscus: a glowing line of light along the surface
-    if (R.fill > 0.015 && R.fill < 0.995) {
-      ctx.beginPath();
-      const N = 40;
-      for (let i = 0; i < N; i++) {
-        const u = i / (N - 1), x = cx - r + u * 2 * r;
-        const y = surfaceY(u * 6.28, t, base, amp, 0);
-        i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
-      }
-      ctx.strokeStyle = `rgba(255,255,255,${0.5 + R.level * 0.4})`;
-      ctx.lineWidth = 1.3;
-      ctx.shadowColor = rgba(R.tint, 0.9);
-      ctx.shadowBlur = 6 + R.level * 10;
-      ctx.stroke();
-      ctx.shadowBlur = 0;
-    }
-
-    // bubbles: the work being done, climbing through the liquid
-    if (R.bubbleOn && t >= R.nextBubble) {
-      R.nextBubble = t + 0.10 + Math.random() * 0.16;
-      const a = Math.random() * 6.28;
-      R.bubbles.push({
-        x: cx + Math.cos(a) * r * 0.55 * Math.random(),
-        y: cy + r * 0.8,
-        vy: (14 + Math.random() * 26) * (r / 24),
-        wob: Math.random() * 6.28,
-        sz: (0.7 + Math.random() * 1.3) * Math.max(0.7, r / 24),
-      });
-    }
-    R.bubbles = R.bubbles.filter((b) => {
-      b.y -= b.vy * dt;
-      b.x += Math.sin(t * 5 + b.wob) * 6 * dt;
-      const gone = b.y < surfaceY((b.x - cx + r) / (2 * r) * 6.28, t, base, amp, 0) + 1;
-      if (!gone) {
-        ctx.fillStyle = rgba([255, 255, 255], 0.35);
-        ctx.beginPath(); ctx.arc(b.x, b.y, b.sz, 0, 7); ctx.fill();
-        ctx.strokeStyle = rgba(R.tint, 0.5);
-        ctx.lineWidth = 0.6;
-        ctx.stroke();
-      }
-      return !gone;
-    });
-
-    // success bloom: the brimming vessel releases its light
-    if (R.bloomAt >= 0) {
-      const k = Math.min(1, (t - R.bloomAt) / 0.65);
-      const ease = 1 - Math.pow(1 - k, 3);
-      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * (0.3 + ease * 0.9));
-      g.addColorStop(0, `rgba(255,255,255,${0.75 * (1 - k)})`);
-      g.addColorStop(0.6, rgba(R.tint, 0.4 * (1 - k)));
+    // Soft activity glow only — never a filled rectangle behind the shape.
+    if (R.level > 0.02 || R.impulse > 0.02) {
+      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, w * .45);
+      g.addColorStop(0, rgba(R.tint, .08 + R.level * .05));
       g.addColorStop(1, rgba(R.tint, 0));
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, w, h);
-      if (k >= 1 && Math.abs(R.fill - R.fillT) < 0.02) stopLoop();
     }
 
-    ctx.restore();
+    if (R.kind === "recording" || R.kind === "assist-recording") drawWaveform(t, w, h);
+    else if (R.kind === "processing" || R.kind === "loading" || R.kind === "download") drawProgress(t, w, h);
+    else drawMark(w, h, R.kind);
 
-    // silence: once drained, rest
-    if (R.fillT === 0 && R.fill < 0.01 && R.bloomAt < 0) stopLoop();
-  }
-
-  function drawStill() {  // reduced motion: a single quiet frame
-    const s = fit(); if (!s) return;
-    const { w, h } = s;
-    const cx = w / 2, cy = h / 2, r = Math.min(w, h) / 2 - 1.5;
-    ctx.clearRect(0, 0, w, h);
-    ctx.save();
-    ctx.beginPath(); ctx.arc(cx, cy, r, 0, 7); ctx.clip();
-    const base = (cy + r + 3) - R.fillT * (2 * r + 6);
-    ctx.fillStyle = rgba(R.want, 0.7);
-    ctx.fillRect(cx - r, base, 2 * r, 2 * r);
+    if (R.bloomAt >= 0) {
+      const k = Math.min(1, (t - R.bloomAt) / 0.5);
+      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, h * (0.3 + (1 - Math.pow(1 - k, 3)) * 1.4));
+      g.addColorStop(0, `rgba(255,255,255,${.32 * (1 - k)})`);
+      g.addColorStop(1, rgba(R.tint, 0));
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, w, h);
+    }
     ctx.restore();
   }
 
+  function drawStill() { draw(0); }
   return { set, setLevel, off };
 }
 
-const orb = Liquid(wave);
+const orb = LiquidGlass(wave);
 
-// The card's small orb: recreated with the card's DOM, killed before it.
-let mini = null;
-function killMini() {
-  if (mini) { mini.off(); mini = null; }
-}
-
-/* ================= state rendering ================= */
 let lastState = "";
 
 function setMode(mode) {
@@ -455,131 +633,150 @@ function setMode(mode) {
   return changed;
 }
 
+function playEnter() {
+  if (REDUCED) return;
+  pill.classList.remove("enter");
+  void pill.offsetWidth;
+  pill.classList.add("enter");
+}
+
 function render(s) {
   const appearing = pill.classList.contains("hidden");
   pill.classList.remove("hidden");
   if (s.state !== lastState) pill.classList.remove("ok", "err");
-  if (appearing && !REDUCED) {
-    pill.classList.remove("enter");
-    void pill.offsetWidth;
-    pill.classList.add("enter");
-  }
-  if (s.state !== "assist-processing" && s.state !== "assist-answer") killMini();
+  if (appearing) playEnter();
 
   switch (s.state) {
     case "recording":
     case "assist-recording": {
       const assist = s.state === "assist-recording";
       setMode(assist ? "assist-rec" : "rec");
+      card.innerHTML = "";
+      card.className = "";
       orb.setLevel(s.level || 0);
       orb.set({
         tint: assist ? TINT.assist : TINT.rec,
         fill: 0.52 + (s.level || 0) * 2,
-        bubbles: false,
+        kind: assist ? "assist-recording" : "recording",
       });
       break;
     }
     case "processing":
       setMode("proc");
-      orb.set({ tint: TINT.rec, fill: 0.5, bubbles: true });
+      card.innerHTML = "";
+      orb.set({ tint: TINT.rec, fill: 0.5, kind: "processing" });
       break;
     case "success":
       setMode("success");
-      orb.set({ tint: TINT.ok, fill: 1, bubbles: false, bloom: true });
+      card.innerHTML = "";
+      orb.set({ tint: TINT.ok, fill: 1, kind: "success", bloom: true });
       pill.classList.add("ok");
       break;
     case "no-speech":
       setMode("nospeech");
-      orb.set({ tint: TINT.mute, fill: 0, bubbles: false });
+      card.innerHTML = "";
+      orb.set({ tint: TINT.mute, fill: 0, kind: "no-speech" });
       break;
     case "error":
       setMode("error");
-      orb.set({ tint: TINT.err, fill: 0.42, bubbles: false, kick: 1.2 });
+      card.innerHTML = "";
+      orb.set({ tint: TINT.err, fill: 0.42, kind: "error", kick: 1.2 });
       pill.classList.add("err");
       break;
     case "loading":
       setMode("load");
-      orb.set({ tint: TINT.mute, fill: 0.45, bubbles: true });
+      card.innerHTML = "";
+      orb.set({ tint: TINT.mute, fill: 0.45, kind: "loading" });
       break;
     case "downloading":
-      // the vessel literally fills with the download
       setMode("load");
+      card.innerHTML = "";
       orb.set({
         tint: TINT.mute,
         fill: Math.max(0.06, (s.pct || 0) / 100),
-        bubbles: true,
+        kind: "download",
       });
       break;
+
     case "assist-processing": {
-      // First event composes the card; later ticks only update the status
-      // line so nothing restarts. The small orb thinks in violet.
+      // Compact thinking card — pulse + status + muted query. No orb.
       if (setMode("assist-proc")) {
         orb.off();
-        killMini();
-        card.className = "center";
+        card.className = "thinking";
         card.innerHTML =
-          '<div class="row stag"><canvas class="orb"></canvas>' +
-          '<div class="col"><div class="query"></div>' +
-          '<div class="status shimmer"></div></div></div>';
-        mini = Liquid(card.querySelector("canvas.orb"));
-        mini.set({ tint: TINT.assist, fill: 0.52, bubbles: true });
+          '<div class="status-line stag">' +
+            '<span class="pulse" aria-hidden="true"></span>' +
+            '<span class="status-text shimmer"></span>' +
+          '</div>' +
+          '<div class="query-muted stag" style="animation-delay:40ms"></div>';
       }
-      card.querySelector(".query").textContent = s.query || "";
-      card.querySelector(".status").textContent = s.status || "Thinking…";
+      card.querySelector(".status-text").textContent = s.status || "Thinking…";
+      card.querySelector(".query-muted").textContent = s.query || "";
       break;
     }
+
     case "assist-answer": {
+      // Clean stack: header → body (ctx + answer) → footer (chips + copy)
+      const wasAnswer = lastState === "assist-answer";
       setMode("answer");
-      orb.off();
-      killMini();
-      card.className = "";
-      card.innerHTML =
-        '<div class="row stag"><canvas class="orb"></canvas>' +
-        '<div class="query" style="flex:1"></div>' +
-        '<div class="btn quiet" id="closeAnswer">✕</div></div>' +
-        '<div class="ctx stag" style="animation-delay:50ms"></div>' +
-        '<div class="ans"></div>' +
-        '<div class="foot stag" style="animation-delay:110ms"><div class="chips"></div>' +
-        '<div class="btn" id="copyAnswer">Copy</div></div>';
-      // the thinking liquid arrives brimming mint: done. (Just shy of full
-      // so the glowing meniscus stays visible — a disc reads as a dot.)
-      mini = Liquid(card.querySelector("canvas.orb"));
-      mini.set({ tint: TINT.ok, fill: 0.78, bloom: true });
-      card.querySelector(".query").textContent = s.query || "";
-      card.querySelector(".ctx").textContent = s.context_preview || "";
-      const ans = card.querySelector(".ans");
-      ans.textContent = s.answer || "";
-      ans.classList.add("reveal");
-      const chips = card.querySelector(".chips");
-      (s.sources || []).slice(0, 4).forEach((src, i) => {
-        const chip = document.createElement("div");
-        chip.className = "chip";
-        chip.style.animationDelay = 150 + i * 55 + "ms";
-        chip.textContent = src.title || src.url;
-        chip.title = src.url;
-        chip.addEventListener("click", () =>
-          invoke("open_url", { url: src.url }).catch((e) => log("open_url: " + e)));
-        chips.appendChild(chip);
-      });
-      const copy = card.querySelector("#copyAnswer");
-      copy.addEventListener("click", () => {
-        invoke("copy_text", { text: s.answer || "" })
-          .then(() => { copy.textContent = "Copied ✓"; copy.classList.add("done"); })
-          .catch((e) => log("copy_text: " + e));
-      });
-      card.querySelector("#closeAnswer").addEventListener("click", () =>
-        invoke("dismiss_overlay").catch((e) => log("dismiss: " + e)));
+      if (!wasAnswer) {
+        orb.off();
+        card.className = "";
+        card.innerHTML =
+          '<div class="head stag">' +
+            '<div class="head-main">' +
+              '<div class="title"></div>' +
+            '</div>' +
+            '<div class="btn icon" id="closeAnswer" title="Close">✕</div>' +
+          '</div>' +
+          '<div class="body stag" style="animation-delay:40ms">' +
+            '<div class="ctx"></div>' +
+            '<div class="ans"></div>' +
+          '</div>' +
+          '<div class="foot stag" style="animation-delay:80ms">' +
+            '<div class="chips"></div>' +
+            '<div class="btn" id="copyAnswer">Copy</div>' +
+          '</div>';
+
+        card.querySelector(".title").textContent = s.query || "Answer";
+        card.querySelector(".ctx").textContent = s.context_preview || "";
+        const ans = card.querySelector(".ans");
+        ans.textContent = s.answer || "";
+        ans.classList.add("reveal");
+
+        const chips = card.querySelector(".chips");
+        (s.sources || []).slice(0, 4).forEach((src, i) => {
+          const chip = document.createElement("div");
+          chip.className = "chip";
+          chip.style.animationDelay = 120 + i * 45 + "ms";
+          chip.textContent = src.title || src.url;
+          chip.title = src.url;
+          chip.addEventListener("click", () =>
+            invoke("open_url", { url: src.url }).catch((e) => log("open_url: " + e)));
+          chips.appendChild(chip);
+        });
+
+        const copy = card.querySelector("#copyAnswer");
+        copy.addEventListener("click", () => {
+          invoke("copy_text", { text: s.answer || "" })
+            .then(() => { copy.textContent = "Copied"; copy.classList.add("done"); })
+            .catch((e) => log("copy_text: " + e));
+        });
+        card.querySelector("#closeAnswer").addEventListener("click", () =>
+          invoke("dismiss_overlay").catch((e) => log("dismiss: " + e)));
+      }
       break;
     }
+
     default:
       setMode("");
       orb.off();
+      card.innerHTML = "";
       pill.classList.add("hidden");
   }
   lastState = s.state || "";
 }
 
-// Hovering the answer card pins it open; leaving starts a short countdown.
 pill.addEventListener("mouseenter", () => {
   if (pill.dataset.mode === "answer")
     invoke("assist_hover", { hovering: true }).catch(() => {});
@@ -590,10 +787,33 @@ pill.addEventListener("mouseleave", () => {
 });
 
 window.addEventListener("unhandledrejection", (e) => log("overlay rejection: " + e.reason));
-window.__TAURI__.event
-  .listen("flowoss://state", (e) => render(e.payload))
-  .then(() => log("overlay listening"))
-  .catch((err) => log("overlay listen failed: " + err));
+if (TAURI) {
+  TAURI.event
+    .listen("flowoss://state", (e) => render(e.payload))
+    .then(() => log("overlay listening"))
+    .catch((err) => log("overlay listen failed: " + err));
+} else {
+  const state = new URLSearchParams(location.search).get("preview") || "recording";
+  const sample = {
+    state,
+    level: .34,
+    secs: 1,
+    pct: 64,
+    query: "Make this more concise",
+    status: "Thinking…",
+    answer: "A clear, concise answer rendered above the content layer.",
+    context_preview: "Selected text appears here as context.",
+    sources: [
+      { title: "Source one", url: "https://example.com/1" },
+      { title: "Source two", url: "https://example.com/2" },
+    ],
+  };
+  render(sample);
+  if (state === "recording" || state === "assist-recording") {
+    let phase = 0;
+    setInterval(() => render({ ...sample, level: .18 + (Math.sin(phase += .22) + 1) * .18 }), 80);
+  }
+}
 </script>
 </body>
 </html>

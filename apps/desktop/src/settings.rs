@@ -15,6 +15,10 @@ pub struct Settings {
     pub paste_mode: String,
     /// "raw" or "basic".
     pub cleanup: String,
+    /// Play short mechanical feedback cues for meaningful state changes.
+    pub feedback_sounds: bool,
+    /// Cue loudness, clamped to 0.0..=1.0 at playback.
+    pub feedback_volume: f32,
     pub model_dir: PathBuf,
     pub vad_model: PathBuf,
     pub threads: i32,
@@ -37,6 +41,8 @@ impl Default for Settings {
             device: None,
             paste_mode: "auto".into(),
             cleanup: "basic".into(),
+            feedback_sounds: true,
+            feedback_volume: 0.55,
             model_dir: flowoss_core::default_stt_model_dir(),
             vad_model: flowoss_core::default_vad_model_path(),
             threads: 4,

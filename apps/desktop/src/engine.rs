@@ -9,6 +9,7 @@
 use std::sync::mpsc::{channel, Receiver, RecvTimeoutError, Sender};
 use std::time::{Duration, Instant};
 
+use flowoss_audio::FeedbackCue;
 use flowoss_insertion::{notify, InsertOutcome, Inserter};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager};
@@ -35,6 +36,8 @@ pub enum Command {
     DismissOverlay,
     /// Copy arbitrary text (the answer) to the clipboard.
     CopyText(String, Option<Sender<String>>),
+    /// Audition the sound family from Settings.
+    PreviewSound,
 }
 
 /// Event payload for the overlay and settings UIs.
@@ -74,12 +77,12 @@ const ANSWER_LINGER: Duration = Duration::from_secs(30);
 const HOVER_LINGER: Duration = Duration::from_secs(8);
 /// Keep speech models in memory briefly after use so repeated dictation is fast.
 const MODEL_KEEP_WARM: Duration = Duration::from_secs(10 * 60);
-/// The orb: a small circular vessel of liquid light. Wordless — errors and
-/// download progress are told by color/fill, details go via notifications.
-const PILL_SIZE: (u32, u32) = (26, 26);
-/// Compact card while the assistant thinks; grows to ANSWER_SIZE on reply.
-const THINKING_SIZE: (u32, u32) = (560, 116);
-const ANSWER_SIZE: (u32, u32) = (640, 380);
+/// Compact 3D status capsule. Tall enough for cylindrical lighting to read,
+/// wide enough for a live waveform; still a transient click-through layer.
+const PILL_SIZE: (u32, u32) = (54, 24);
+/// Compact thinking card (status + query); grows to ANSWER_SIZE on reply.
+const THINKING_SIZE: (u32, u32) = (420, 88);
+const ANSWER_SIZE: (u32, u32) = (560, 340);
 
 /// Place the overlay just below the top edge, horizontally centered on
 /// the monitor the cursor's window is on (or the primary one) — a notch
@@ -127,6 +130,8 @@ struct Engine {
     hide_at: Option<Instant>,
     models_unload_at: Option<Instant>,
     click_through: Option<bool>,
+    feedback: Option<flowoss_audio::FeedbackPlayer>,
+    feedback_unavailable: bool,
 }
 
 fn run(app: AppHandle, settings: Settings, tx: Sender<Command>, rx: Receiver<Command>) {
@@ -146,6 +151,8 @@ fn run(app: AppHandle, settings: Settings, tx: Sender<Command>, rx: Receiver<Com
         hide_at: None,
         models_unload_at: None,
         click_through: None,
+        feedback: None,
+        feedback_unavailable: false,
     };
     engine.ensure_models_ready();
     engine.emit(StateEvent::Idle);
@@ -364,6 +371,7 @@ impl Engine {
                     let _ = reply.send(result);
                 }
             }
+            Command::PreviewSound => self.play_feedback(FeedbackCue::Success),
         }
     }
 
@@ -424,6 +432,7 @@ impl Engine {
                     secs: 0.0,
                     partial: String::new(),
                 });
+                self.play_feedback(FeedbackCue::RecordStart);
                 "recording".into()
             }
             Err(e) => {
@@ -463,6 +472,7 @@ impl Engine {
                     partial: String::new(),
                     context_preview: preview(&context),
                 });
+                self.play_feedback(FeedbackCue::AssistStart);
                 "assist recording".into()
             }
             Err(e) => {
@@ -476,6 +486,7 @@ impl Engine {
 
     fn finish_recording(&mut self, recording: flowoss_audio::Recording) -> String {
         let samples = recording.stop();
+        self.play_feedback(FeedbackCue::RecordStop);
         self.touch_models();
         self.emit(StateEvent::Processing);
         self.overlay_visible(true);
@@ -486,6 +497,7 @@ impl Engine {
         };
         let Some(speech) = speech else {
             self.emit(StateEvent::NoSpeech);
+            self.play_feedback(FeedbackCue::NoSpeech);
             self.hide_at = Some(Instant::now() + LINGER);
             return "no speech".into();
         };
@@ -497,6 +509,7 @@ impl Engine {
         let text = stt.transcribe(&speech);
         if text.is_empty() {
             self.emit(StateEvent::NoSpeech);
+            self.play_feedback(FeedbackCue::NoSpeech);
             self.hide_at = Some(Instant::now() + LINGER);
             return "no speech".into();
         }
@@ -523,6 +536,7 @@ impl Engine {
             text: text.clone(),
             pasted,
         });
+        self.play_feedback(FeedbackCue::Success);
         self.hide_at = Some(Instant::now() + LINGER);
         text
     }
@@ -534,6 +548,7 @@ impl Engine {
         reply: Option<Sender<String>>,
     ) {
         let samples = recording.stop();
+        self.play_feedback(FeedbackCue::RecordStop);
         self.touch_models();
         self.emit(StateEvent::Processing);
         self.overlay_visible(true);
@@ -544,6 +559,7 @@ impl Engine {
         };
         let Some(speech) = speech else {
             self.emit(StateEvent::NoSpeech);
+            self.play_feedback(FeedbackCue::NoSpeech);
             self.hide_at = Some(Instant::now() + LINGER);
             Self::reply_to(reply, "no speech".into());
             return;
@@ -557,6 +573,7 @@ impl Engine {
         let query = stt.transcribe(&speech);
         if query.is_empty() {
             self.emit(StateEvent::NoSpeech);
+            self.play_feedback(FeedbackCue::NoSpeech);
             self.hide_at = Some(Instant::now() + LINGER);
             Self::reply_to(reply, "no speech".into());
             return;
@@ -632,6 +649,7 @@ impl Engine {
                     context_preview,
                     sources: answer.sources,
                 });
+                self.play_feedback(FeedbackCue::AssistAnswer);
                 self.hide_at = Some(Instant::now() + ANSWER_LINGER);
             }
             Err(e) => self.show_error(&format!("Assistant failed: {e}")),
@@ -667,6 +685,7 @@ impl Engine {
             self.hide_at = None;
             self.overlay_visible(false);
             self.emit(StateEvent::Idle);
+            self.play_feedback(FeedbackCue::Cancel);
             "cancelled".into()
         } else {
             "idle".into()
@@ -708,8 +727,30 @@ impl Engine {
         self.emit(StateEvent::Error {
             message: message.into(),
         });
+        self.play_feedback(FeedbackCue::Error);
         self.hide_at = Some(Instant::now() + LINGER * 2);
         notify("FlowOSS error", message);
+    }
+
+    fn play_feedback(&mut self, cue: FeedbackCue) {
+        if !self.settings.feedback_sounds || self.feedback_unavailable {
+            return;
+        }
+        if self.feedback.is_none() {
+            match flowoss_audio::FeedbackPlayer::new() {
+                Ok(player) => self.feedback = Some(player),
+                Err(e) => {
+                    // Feedback is deliberately supplemental; never disrupt
+                    // dictation just because a machine has no audio output.
+                    eprintln!("feedback sounds unavailable: {e}");
+                    self.feedback_unavailable = true;
+                    return;
+                }
+            }
+        }
+        if let Some(player) = &self.feedback {
+            player.play(cue, self.settings.feedback_volume);
+        }
     }
 }
 

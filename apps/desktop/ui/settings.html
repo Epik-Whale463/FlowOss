@@ -32,17 +32,21 @@
   header h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
   header .sub { color: var(--muted); font-size: 13px; }
 
-  /* hero mirrors the overlay: a shard of dark glass, whatever the theme */
+  /* hero mirrors the overlay: black liquid glass mass */
   .hero {
     position: relative; overflow: hidden;
     display: flex; align-items: center; gap: 16px;
     background:
-      radial-gradient(120% 180% at 8% -30%, rgba(138,151,255,.22), transparent 55%),
-      linear-gradient(160deg, #23242f, #0c0c13);
-    color: #f2f3fa;
-    border: 1px solid rgba(255,255,255,.1);
-    border-radius: 16px; padding: 18px 20px; margin-bottom: 18px;
-    box-shadow: 0 12px 32px rgba(8,8,16,.28), inset 0 1px 0 rgba(255,255,255,.12);
+      radial-gradient(ellipse 90% 50% at 50% -12%, rgba(255,255,255,.20), transparent 55%),
+      radial-gradient(ellipse 70% 80% at 20% 100%, rgba(30,32,42,.45), transparent 60%),
+      linear-gradient(168deg, #16171c 0%, #0a0a0c 50%, #050506 100%);
+    color: #f2f3f7;
+    border: 1.25px solid rgba(210,215,225,.40);
+    border-radius: 18px; padding: 18px 20px; margin-bottom: 18px;
+    box-shadow:
+      0 14px 36px rgba(0,0,0,.40),
+      inset 0 1.5px 0 rgba(255,255,255,.28),
+      inset 0 -1px 1px rgba(0,0,0,.45);
   }
   .hero button {
     background: rgba(255,255,255,.94); color: #14141c;
@@ -86,6 +90,7 @@
     box-shadow: 0 0 0 3px var(--accent-soft);
   }
   input.key { font-family: var(--mono); font-size: 12.5px; letter-spacing: 0.01em; }
+  input[type=range] { width: 112px; accent-color: var(--accent); cursor: pointer; }
 
   .seg { display: inline-flex; background: var(--seg-bg); border-radius: 10px; padding: 3px; }
   .seg label {
@@ -193,6 +198,20 @@
       <div class="seg" id="cleanup">
         <label><input type="radio" name="cleanup" value="raw"><span>Raw</span></label>
         <label><input type="radio" name="cleanup" value="basic"><span>Basic</span></label>
+      </div>
+    </div>
+    <div class="row">
+      <div class="info">
+        <div class="label">Feedback sounds</div>
+        <div class="desc">Short mechanical cues confirm start, stop, completion, and problems</div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center">
+        <div class="seg" id="feedbackSounds">
+          <label><input type="radio" name="feedback" value="on"><span>On</span></label>
+          <label><input type="radio" name="feedback" value="off"><span>Off</span></label>
+        </div>
+        <input type="range" id="feedbackVolume" min="0" max="100" step="5" aria-label="Feedback volume">
+        <button class="ghost" id="previewSound">Preview</button>
       </div>
     </div>
   </section>
@@ -332,6 +351,12 @@
       (document.querySelector(`#pasteMode input[value="${settings.paste_mode}"]`).checked = true);
     const cl = document.querySelector(`#cleanup input[value="${settings.cleanup}"]`);
     if (cl) cl.checked = true;
+    const feedback = document.querySelector(
+      `#feedbackSounds input[value="${settings.feedback_sounds === false ? "off" : "on"}"]`);
+    if (feedback) feedback.checked = true;
+    $("feedbackVolume").value = Math.round((settings.feedback_volume ?? 0.55) * 100);
+    $("feedbackVolume").disabled = settings.feedback_sounds === false;
+    $("previewSound").disabled = settings.feedback_sounds === false;
     const ws = document.querySelector(
       `#webSearch input[value="${settings.assist_web_search === false ? "off" : "on"}"]`);
     if (ws) ws.checked = true;
@@ -355,6 +380,21 @@
   $("cleanup").addEventListener("change", (e) => {
     settings.cleanup = e.target.value;
     save();
+  });
+  $("feedbackSounds").addEventListener("change", (e) => {
+    settings.feedback_sounds = e.target.value === "on";
+    $("feedbackVolume").disabled = !settings.feedback_sounds;
+    $("previewSound").disabled = !settings.feedback_sounds;
+    save();
+  });
+  $("feedbackVolume").addEventListener("change", () => {
+    settings.feedback_volume = Number($("feedbackVolume").value) / 100;
+    save();
+  });
+  $("previewSound").addEventListener("click", async () => {
+    settings.feedback_volume = Number($("feedbackVolume").value) / 100;
+    await save();
+    await invoke("preview_sound");
   });
   $("applyHotkey").addEventListener("click", async () => {
     try {
